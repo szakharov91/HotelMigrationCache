@@ -2,7 +2,9 @@
 
 namespace HotelMigrationCache.Core.Store;
 
-public interface IKeyValueStore<TValue>
+/// <summary>Интерфейс нашего кэша</summary>
+/// <typeparam name="TValue">гарант, что тип значения реализует интерфейс IBinarySerializable </typeparam>
+public interface IKeyValueStore<TValue>: IDisposable
     where TValue: IBinarySerializable<TValue>
 {
     void Set(string key, TValue value);

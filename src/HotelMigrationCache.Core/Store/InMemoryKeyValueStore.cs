@@ -1,10 +1,9 @@
 ﻿using System.Buffers;
 using HotelMigrationCache.Shared.Contracts;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace HotelMigrationCache.Core.Store;
 
-public class InMemoryKeyValueStore<TValue>: IKeyValueStore<TValue>, IDisposable
+public class InMemoryKeyValueStore<TValue>: IKeyValueStore<TValue>
     where TValue : IBinarySerializable<TValue>
 {
     #region private fields
@@ -96,7 +95,6 @@ public class InMemoryKeyValueStore<TValue>: IKeyValueStore<TValue>, IDisposable
     public CacheStatistics GetStatistics() => new(_keyValuePairs.Count, _hitCount, _missCount, _setCount, _deleteCount);
     public void Dispose()
     {
-        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
         Dispose(disposing: true);
         GC.SuppressFinalize(this);
     }
