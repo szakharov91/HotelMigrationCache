@@ -1,0 +1,29 @@
+﻿<Project>
+	<PropertyGroup>
+		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+		<CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+		<NoWarn>$(NoWarn);NU1902;NU1903</NoWarn>
+	</PropertyGroup>
+	<ItemGroup>
+		<!-- Runtime -->
+		<PackageVersion Include="SonarAnalyzer.CSharp" Version="10.15.0.120848" />
+		
+		<!-- OpenTelemetry -->
+		<PackageVersion Include="OpenTelemetry" Version="1.13.0" />
+		<PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.13.0" />
+		<PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.13.0" />
+		<PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0" />
+		<PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
+		<!-- Tests -->
+		<PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+		<PackageVersion Include="xunit" Version="2.9.3" />
+		<PackageVersion Include="xunit.runner.visualstudio" Version="3.0.2" />
+		<PackageVersion Include="FluentAssertions" Version="8.7.1" />
+		<PackageVersion Include="coverlet.collector" Version="6.0.4" />
+		<!-- Benchmarks -->
+		<PackageVersion Include="BenchmarkDotNet" Version="0.15.2" />
+		<PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0" />
+		<!-- Load testing -->
+		<PackageVersion Include="NBomber" Version="6.1.0" />
+	</ItemGroup>
+</Project>

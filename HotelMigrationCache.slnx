@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/HotelMigrationCache.Benchmarks/HotelMigrationCache.Benchmarks.csproj" />
+    <Project Path="src/HotelMigrationCache.Core/HotelMigrationCache.Core.csproj" />
+    <Project Path="src/HotelMigrationCache.Demo/HotelMigrationCache.Demo.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+  <Project Path="tests/HotelMigrationCache.Core.Tests/HotelMigrationCache.Core.Tests.csproj" />
+</Solution>
