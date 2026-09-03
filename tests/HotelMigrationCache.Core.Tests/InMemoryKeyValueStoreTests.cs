@@ -1,22 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using FluentAssertions;
+using HotelMigrationCache.Core.Store;
+using HotelMigrationCache.Shared.Common;
 
 namespace HotelMigrationCache.Core.Tests;
 
 public class InMemoryKeyValueStoreTests
 {
+    private IKeyValueStore<CloudProfileData>? _store;
+
     [Fact]
     public void SetAndGet_ReturnsValue()
     {
         // Arrange
-        var store = new InMemoryKeyValueStore();
-        var key = "testKey";
-        var value = "testValue";
+        _store = new InMemoryKeyValueStore<CloudProfileData>();
+        var key = "guest123";
+        var value = new CloudProfileData();
+
         // Act
-        store.Set(key, value);
-        var result = store.Get(key);
+        _store.Set(key, value);
+
         // Assert
-        result.Should().Be(value);
+        _store.TryGet(key, out var result).Should().BeTrue();
+        result.Should().BeEquivalentTo(value);
     }
 }

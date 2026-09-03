@@ -8,6 +8,10 @@
 		<!-- Runtime -->
 		<PackageVersion Include="SonarAnalyzer.CSharp" Version="10.15.0.120848" />
 		
+		<!-- Source Generators -->
+		<PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" />
+		<PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+		
 		<!-- OpenTelemetry -->
 		<PackageVersion Include="OpenTelemetry" Version="1.13.0" />
 		<PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.13.0" />

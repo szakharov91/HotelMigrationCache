@@ -16,6 +16,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <ProjectReference Include="..\..\src\HotelMigrationCache.Core\HotelMigrationCache.Core.csproj" />
+	  <ProjectReference Include="..\..\src\HotelMigrationCache.Domain\HotelMigrationCache.Shared.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<Using Include="Xunit" />
 	</ItemGroup>
 
