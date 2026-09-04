@@ -1,45 +1,31 @@
-﻿using System.Buffers;
+﻿using HotelMigrationCache.Shared.Common;
 using HotelMigrationCache.Shared.Contracts;
 
 namespace HotelMigrationCache.Core.Store;
 
-public class InMemoryKeyValueStore<TValue>: IKeyValueStore<TValue>
-    where TValue : IBinarySerializable<TValue>
+public sealed class InMemoryKeyValueStore: IKeyValueStore
 {
     #region private fields
-    private readonly Dictionary<string, byte[]> _keyValuePairs;
+    private readonly Dictionary<byte[], byte[]> _keyValuePairs;
     private readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.NoRecursion);
     private long _hitCount, _missCount, _setCount, _deleteCount;
     private bool _disposedValue;
     #endregion
 
     #region .ctors
-    public InMemoryKeyValueStore() => _keyValuePairs = new Dictionary<string, byte[]>();
+    public InMemoryKeyValueStore() => _keyValuePairs = new Dictionary<byte[], byte[]>();
     #endregion
 
     #region public methods
-    public void Set(string key, TValue value)
+    public void Set(byte[] key, byte[] value)
     {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(value);
 
-        byte[] buffer = ArrayPool<byte>.Shared.Rent(256);
-        byte[] bytes;
-        try
-        {
-            using var stream = new MemoryStream(buffer, 0, buffer.Length, writable: true);
-            value.SerializeToBinary(stream);
-            bytes = buffer.AsSpan(0, (int)stream.Position).ToArray();
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
-
         _lock.EnterWriteLock();
         try
         {
-            _keyValuePairs[key] = bytes;
+            _keyValuePairs[key] = value;
             Interlocked.Increment(ref _setCount);
         }
         finally
@@ -48,7 +34,7 @@ public class InMemoryKeyValueStore<TValue>: IKeyValueStore<TValue>
         }
     }
 
-    public bool TryGet(string key, out TValue value)
+    public bool TryGet(byte[] key, out byte[] value)
     {
         ArgumentNullException.ThrowIfNull(key);
         _lock.EnterReadLock();
@@ -62,8 +48,7 @@ public class InMemoryKeyValueStore<TValue>: IKeyValueStore<TValue>
             }
 
             Interlocked.Increment(ref _hitCount);
-            using var readStream = new MemoryStream(bytes);
-            value = TValue.DeserializeFromBinary(readStream);
+            value = bytes;
             return true;
         }
         finally
@@ -72,7 +57,7 @@ public class InMemoryKeyValueStore<TValue>: IKeyValueStore<TValue>
         }
     }
 
-    public bool Delete(string key)
+    public bool Delete(byte[] key)
     {
         ArgumentNullException.ThrowIfNull(key);
         _lock.EnterWriteLock();
@@ -93,6 +78,7 @@ public class InMemoryKeyValueStore<TValue>: IKeyValueStore<TValue>
     }
 
     public CacheStatistics GetStatistics() => new(_keyValuePairs.Count, _hitCount, _missCount, _setCount, _deleteCount);
+
     public void Dispose()
     {
         Dispose(disposing: true);
@@ -100,8 +86,8 @@ public class InMemoryKeyValueStore<TValue>: IKeyValueStore<TValue>
     }
     #endregion
 
-    #region private and protected methods
-    protected virtual void Dispose(bool disposing)
+    #region private methods
+    private void Dispose(bool disposing)
     {
         if (!_disposedValue)
         {
@@ -113,5 +99,6 @@ public class InMemoryKeyValueStore<TValue>: IKeyValueStore<TValue>
             _disposedValue = true;
         }
     }
+
     #endregion
 }
