@@ -10,8 +10,4 @@
 		<ProjectReference Include="..\HotelMigrationCache.Domain\HotelMigrationCache.Shared.csproj" />
 	</ItemGroup>
 
-	<ItemGroup>
-		<InternalsVisibleTo Include="..\HotelMigrationCache.Core.Tests\HotelMigrationCache.Core.Tests.csproj" />
-	</ItemGroup>
-
 </Project>

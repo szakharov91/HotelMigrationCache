@@ -6,9 +6,6 @@ namespace HotelMigrationCache.Shared.Common;
 
 public static class CommandBuilder
 {
-    public static byte[] Build(string command, string key, object? value = null) 
-        => value is not null ? Build(command, Encoding.UTF8.GetBytes(key), JsonSerializer.SerializeToUtf8Bytes(value)) : Build(command, Encoding.UTF8.GetBytes(key));
-
     public static byte[] Build(string command, byte[] key, byte[]? value = null)
     {
         byte[] cmd = Encoding.UTF8.GetBytes(command);

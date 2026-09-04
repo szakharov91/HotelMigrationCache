@@ -26,7 +26,7 @@ public sealed class CacheServiceTcpClient : ICacheServiceClient
 
     public async Task<CloudProfileData> GetAsync(string key)
     {
-        byte[] response = await SendCommand(CommandBuilder.Build("GET", key, null));
+        byte[] response = await SendCommand(CommandBuilder.Build("GET", Encoding.UTF8.GetBytes(key)));
         return CloudProfileData.DeserializeFromBinary(new MemoryStream(response));
     }
 
@@ -45,7 +45,7 @@ public sealed class CacheServiceTcpClient : ICacheServiceClient
             ArrayPool<byte>.Shared.Return(buffer);
         }
 
-        byte[] command = CommandBuilder.Build("SET", key, bytes);
+        byte[] command = CommandBuilder.Build("SET", Encoding.UTF8.GetBytes(key), bytes);
 
         var response = await SendCommand(command);
         return ParseServerResponse(response);
@@ -53,7 +53,7 @@ public sealed class CacheServiceTcpClient : ICacheServiceClient
 
     public async Task<CacheServiceResponseCode> DeleteAsync(string key)
     {
-        byte[] command = CommandBuilder.Build("DELETE", key, Array.Empty<byte>());
+        byte[] command = CommandBuilder.Build("DELETE", Encoding.UTF8.GetBytes(key));
 
         var response = await SendCommand(command);
 

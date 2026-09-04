@@ -131,7 +131,7 @@ public sealed class TcpServerInterface(IKeyValueStore storage, int port, IPAddre
 
                 try
                 {
-                    ProcessMessage(readOnlyData.Span, clientSocket);
+                    response = ProcessMessage(readOnlyData.Span);
                 }
                 finally
                 {
@@ -168,34 +168,19 @@ public sealed class TcpServerInterface(IKeyValueStore storage, int port, IPAddre
         await socket.SendAsync(data, SocketFlags.None, ct);
     }
 
-    private static void SendWithLength(Socket socket, byte[] data)
-    {
-        // Длина в сетевом порядке (big-endian)
-        int length = IPAddress.HostToNetworkOrder(data.Length);
-        byte[] lengthBytes = BitConverter.GetBytes(length);
-        socket.Send(lengthBytes, SocketFlags.None);
-        socket.Send(data, SocketFlags.None);
-    }
-
-    private void ProcessMessage(ReadOnlySpan<byte> message, Socket clientSocket)
+    private byte[] ProcessMessage(ReadOnlySpan<byte> message)
     {
         var parsed = CommandParser.Parse(message);
         if (!parsed.IsValid)
-        {
-            SendWithLength(clientSocket, ServerResponses.AsBytes.InvalidPayloadResponse);
-            return;
-        }
+            return ServerResponses.AsBytes.InvalidPayloadResponse;
 
-        byte[] response;
-        response = parsed.GetCommandKind() switch
+        return parsed.GetCommandKind() switch
         {
             ServerCommandKind.Get => ProcessGetCommand(parsed.Key.ToArray()),
             ServerCommandKind.Set => ProcessSetCommand(parsed.Key.ToArray(), parsed.Value.ToArray()),
             ServerCommandKind.Delete => ProcessDeleteCommand(parsed.Key.ToArray()),
             _ => ServerResponses.AsBytes.UnknownCommandResponse
         };
-
-        SendWithLength(clientSocket, response);
     }
     #endregion
 }
