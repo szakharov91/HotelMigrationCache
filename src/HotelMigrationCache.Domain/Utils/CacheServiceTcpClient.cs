@@ -24,13 +24,22 @@ public sealed class CacheServiceTcpClient : ICacheServiceClient
         _port = port;
     }
 
-    public async Task<CloudProfileData> GetAsync(string key)
+    public async Task<CacheServiceResponse> GetAsync(string key)
     {
         byte[] response = await SendCommand(CommandBuilder.Build("GET", Encoding.UTF8.GetBytes(key)));
-        return CloudProfileData.DeserializeFromBinary(new MemoryStream(response));
+
+        try
+        {
+            var value = CloudProfileData.DeserializeFromBinary(new MemoryStream(response));
+            return new CacheServiceResponse(CacheServiceResponseCode.Ok, value);
+        }
+        catch
+        {
+            return new CacheServiceResponse(ParseServerResponse(response));
+        }
     }
 
-    public async Task<CacheServiceResponseCode> SetAsync(string key, CloudProfileData value)
+    public async Task<CacheServiceResponse> SetAsync(string key, CloudProfileData value)
     {
         byte[] buffer = ArrayPool<byte>.Shared.Rent(256);
         byte[] bytes;
@@ -48,17 +57,19 @@ public sealed class CacheServiceTcpClient : ICacheServiceClient
         byte[] command = CommandBuilder.Build("SET", Encoding.UTF8.GetBytes(key), bytes);
 
         var response = await SendCommand(command);
-        return ParseServerResponse(response);
+        return new CacheServiceResponse(ParseServerResponse(response));
     }
 
-    public async Task<CacheServiceResponseCode> DeleteAsync(string key)
+    public async Task<CacheServiceResponse> DeleteAsync(string key)
     {
         byte[] command = CommandBuilder.Build("DELETE", Encoding.UTF8.GetBytes(key));
 
         var response = await SendCommand(command);
 
-        return ParseServerResponse(response);
+        return new CacheServiceResponse(ParseServerResponse(response));
     }
+
+    public async Task ConnectAsync() => await EnsureConnectedAsync();
 
     private async Task<byte[]> SendCommand(byte[] data)
     {

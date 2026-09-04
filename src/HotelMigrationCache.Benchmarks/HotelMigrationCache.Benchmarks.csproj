@@ -7,4 +7,14 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+	  <PackageReference Include="BenchmarkDotNet" />
+	  <PackageReference Include="Bogus" />
+	  <PackageReference Include="NBomber" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HotelMigrationCache.Domain\HotelMigrationCache.Shared.csproj" />
+  </ItemGroup>
+
 </Project>

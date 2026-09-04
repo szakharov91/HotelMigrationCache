@@ -8,7 +8,7 @@ public partial class CloudProfileData: IBinarySerializable<CloudProfileData>
 {
     public string? SrcId { get; set; }
     public string? DstId { get; set; }
-    public DateOnly DateOfBirth { get; }
+    public DateOnly DateOfBirth { get; set; }
     public string? Firstname { get; set; }
     public string? Lastname { get; set; }
     public string? Email { get; set; }

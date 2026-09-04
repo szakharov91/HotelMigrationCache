@@ -26,9 +26,10 @@
 		<PackageVersion Include="FluentAssertions" Version="8.7.1" />
 		<PackageVersion Include="coverlet.collector" Version="6.0.4" />
 		<!-- Benchmarks -->
-		<PackageVersion Include="BenchmarkDotNet" Version="0.15.2" />
+		<PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
 		<PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0" />
 		<!-- Load testing -->
-		<PackageVersion Include="NBomber" Version="6.1.0" />
+		<PackageVersion Include="NBomber" Version="6.5.0" />
+		<PackageVersion Include="Bogus" Version="35.6.5" />
 	</ItemGroup>
 </Project>
