@@ -13,7 +13,7 @@ public sealed class InMemoryKeyValueStore: IKeyValueStore
     #endregion
 
     #region .ctors
-    public InMemoryKeyValueStore() => _keyValuePairs = new Dictionary<byte[], byte[]>();
+    public InMemoryKeyValueStore() => _keyValuePairs = new Dictionary<byte[], byte[]>(ByteArrayEqualityComparer.Instance);
     #endregion
 
     #region public methods
@@ -101,4 +101,23 @@ public sealed class InMemoryKeyValueStore: IKeyValueStore
     }
 
     #endregion
+
+    private sealed class ByteArrayEqualityComparer : IEqualityComparer<byte[]>
+    {
+        public static readonly ByteArrayEqualityComparer Instance = new();
+
+        public bool Equals(byte[]? x, byte[]? y)
+        {
+            if (ReferenceEquals(x, y)) return true;
+            if (x is null || y is null) return false;
+            return x.AsSpan().SequenceEqual(y);
+        }
+
+        public int GetHashCode(byte[] obj)
+        {
+            var hash = new HashCode();
+            hash.AddBytes(obj);
+            return hash.ToHashCode();
+        }
+    }
 }
