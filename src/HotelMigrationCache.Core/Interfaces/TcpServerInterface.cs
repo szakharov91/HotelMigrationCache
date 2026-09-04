@@ -19,7 +19,7 @@ public sealed class TcpServerInterface(IKeyValueStore storage, int port, IPAddre
     private readonly IPAddress _ipAddress = ipAddress;
     private readonly CancellationTokenSource _cts = new CancellationTokenSource();
     private readonly int _bufferSize = 8 * 1024;
-    private readonly SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(4, 4);
+    private readonly SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(256, 256);
 
     private Socket? _listener;
     private bool _disposedValue;
