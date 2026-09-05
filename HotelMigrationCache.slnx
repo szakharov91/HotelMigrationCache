@@ -9,6 +9,7 @@
     <Project Path="src/HotelMigrationCache.Core/HotelMigrationCache.Core.csproj" />
     <Project Path="src/HotelMigrationCache.Demo/HotelMigrationCache.Demo.csproj" />
     <Project Path="src/HotelMigrationCache.Domain/HotelMigrationCache.Shared.csproj" />
+    <Project Path="src/HotelMigrationCache.MigrationTool/HotelMigrationCache.MigrationTool.csproj" />
     <Project Path="src/HotelMigrationCache.SourceGen/HotelMigrationCache.SourceGen.csproj" />
   </Folder>
   <Folder Name="/tests/">

@@ -237,6 +237,8 @@ dotnet_diagnostic.SA1649.severity = none
 # S1121: Assignments should not be made from within sub-expressions
 dotnet_diagnostic.S1121.severity = none
 
+dotnet_diagnostic.S2139.severity = suggestion
+
 # NET.CodeAnalyzers
 
 # CA1000: Do not declare static members on generic types

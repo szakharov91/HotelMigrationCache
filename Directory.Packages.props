@@ -1,35 +1,40 @@
 ﻿<Project>
-	<PropertyGroup>
-		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-		<CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
-		<NoWarn>$(NoWarn);NU1902;NU1903</NoWarn>
-	</PropertyGroup>
-	<ItemGroup>
-		<!-- Runtime -->
-		<PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
-		<PackageVersion Include="SonarAnalyzer.CSharp" Version="10.15.0.120848" />
-		
-		<!-- Source Generators -->
-		<PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" />
-		<PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
-		
-		<!-- OpenTelemetry -->
-		<PackageVersion Include="OpenTelemetry" Version="1.13.0" />
-		<PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.13.0" />
-		<PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.13.0" />
-		<PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0" />
-		<PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
-		<!-- Tests -->
-		<PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-		<PackageVersion Include="xunit" Version="2.9.3" />
-		<PackageVersion Include="xunit.runner.visualstudio" Version="3.0.2" />
-		<PackageVersion Include="FluentAssertions" Version="8.7.1" />
-		<PackageVersion Include="coverlet.collector" Version="6.0.4" />
-		<!-- Benchmarks -->
-		<PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
-		<PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0" />
-		<!-- Load testing -->
-		<PackageVersion Include="NBomber" Version="6.5.0" />
-		<PackageVersion Include="Bogus" Version="35.6.5" />
-	</ItemGroup>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+    <NoWarn>$(NoWarn);NU1902;NU1903</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Runtime -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+    <PackageVersion Include="Serilog" Version="4.4.0" />
+    <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.15.0.120848" />
+    <!-- Source Generators -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+    <!-- OpenTelemetry -->
+    <PackageVersion Include="OpenTelemetry" Version="1.13.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.13.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.13.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
+    <!-- Tests -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.0.2" />
+    <PackageVersion Include="FluentAssertions" Version="8.7.1" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <!-- Benchmarks -->
+    <PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0" />
+    <!-- Load testing -->
+    <PackageVersion Include="NBomber" Version="6.5.0" />
+    <PackageVersion Include="Bogus" Version="35.6.5" />
+  </ItemGroup>
 </Project>
