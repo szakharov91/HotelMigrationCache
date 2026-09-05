@@ -39,4 +39,11 @@
         <Smoking>No</Smoking>
         <BedType>King</BedType>
     </Preferences>
+
+    <!-- Программа лояльности (необязательно; отсутствие блока = гость не участвует) -->
+    <LoyaltyProgram>
+        <Level>Gold</Level>                   <!-- Basic / Silver / Gold / Platinum / Diamond -->
+        <MemberID>LP-000123456</MemberID>     <!-- Номер участника -->
+        <ExpiryDate>2027-12-31</ExpiryDate>   <!-- Дата окончания членства -->
+    </LoyaltyProgram>
 </Profile>

@@ -49,4 +49,10 @@
     
     <!-- Комментарии или специальные запросы -->
     <Remarks>Late check-in after 22:00, please leave key at reception.</Remarks>
+
+    <!-- Сопровождающие гости (необязательно; ссылки на другие ProfileID) -->
+    <AccompanyingGuests>
+        <GuestProfileID>P-000123</GuestProfileID>
+        <GuestProfileID>P-000456</GuestProfileID>
+    </AccompanyingGuests>
 </Booking>
