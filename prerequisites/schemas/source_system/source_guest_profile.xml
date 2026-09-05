@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Profile>
+    <!-- Уникальный идентификатор профиля в системе -->
+    <ProfileID>P-10042</ProfileID>
+    
+    <!-- Личные данные -->
+    <PersonalInfo>
+        <FirstName>Anna</FirstName>
+        <LastName>Ivanova</LastName>
+        <Gender>Female</Gender>               <!-- Male / Female / Other -->
+        <BirthDate>1987-05-12</BirthDate>     <!-- Формат YYYY-MM-DD -->
+        <Nationality>RU</Nationality>         <!-- Код страны (ISO 3166-1) -->
+    </PersonalInfo>
+    
+    <!-- Контактные данные -->
+    <ContactInfo>
+        <Phone>+7 912 345-67-89</Phone>
+        <Email>anna.ivanova@example.com</Email>
+        <Address>
+            <Street>Nevsky Prospekt, 15</Street>
+            <City>Saint Petersburg</City>
+            <PostalCode>191186</PostalCode>
+            <Country>RU</Country>
+        </Address>
+    </ContactInfo>
+    
+    <!-- Паспортные данные (или ID-документ) -->
+    <IdentityDocument>
+        <DocType>Passport</DocType>
+        <DocNumber>45 67 891234</DocNumber>
+        <IssueDate>2015-08-20</IssueDate>
+        <ExpiryDate>2025-08-19</ExpiryDate>
+        <IssuedBy>MVD Russia</IssuedBy>
+    </IdentityDocument>
+    
+    <!-- Дополнительные предпочтения (необязательно) -->
+    <Preferences>
+        <Language>RU</Language>
+        <Smoking>No</Smoking>
+        <BedType>King</BedType>
+    </Preferences>
+</Profile>

@@ -1,0 +1,202 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schemas/booking.json",
+  "title": "Booking",
+  "description": "Данные о бронировании, привязанные к профилю гостя (версия для миграции)",
+  "type": "object",
+  "properties": {
+    "reservationId": {
+      "type": "string",
+      "description": "Уникальный номер бронирования в системе-источнике",
+      "examples": ["B-2026-0001"]
+    },
+    "guestProfileId": {
+      "type": "string",
+      "description": "Идентификатор профиля гостя (ссылка на guestId)",
+      "examples": ["P-10042"]
+    },
+    "stayDates": {
+      "type": "object",
+      "description": "Даты заезда и выезда",
+      "properties": {
+        "arrivalDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Дата заезда",
+          "examples": ["2026-09-15"]
+        },
+        "departureDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Дата выезда",
+          "examples": ["2026-09-20"]
+        }
+      },
+      "required": ["arrivalDate", "departureDate"]
+    },
+    "accommodation": {
+      "type": "object",
+      "description": "Информация о номере",
+      "properties": {
+        "roomCategory": {
+          "type": "string",
+          "description": "Категория/тип номера",
+          "examples": ["Deluxe Suite"]
+        },
+        "unitNumber": {
+          "type": "string",
+          "description": "Номер комнаты (назначается при заселении, может отсутствовать)",
+          "examples": ["401"]
+        },
+        "bedSetup": {
+          "type": "string",
+          "description": "Конфигурация спальных мест",
+          "examples": ["King + Sofa"]
+        }
+      },
+      "required": ["roomCategory"]
+    },
+    "occupancy": {
+      "type": "object",
+      "description": "Количество и возраст гостей",
+      "properties": {
+        "adults": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Количество взрослых",
+          "examples": [2]
+        },
+        "children": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Количество детей",
+          "examples": [1]
+        },
+        "childAges": {
+          "type": "array",
+          "description": "Возраст каждого ребёнка (если есть)",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 17
+          },
+          "examples": [[7]]
+        }
+      },
+      "required": ["adults", "children"]
+    },
+    "reservationStatus": {
+      "type": "string",
+      "enum": ["CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED", "NO_SHOW", "PENDING"],
+      "description": "Текущий статус бронирования",
+      "examples": ["CONFIRMED"]
+    },
+    "totalAmount": {
+      "type": "object",
+      "description": "Общая стоимость бронирования",
+      "properties": {
+        "value": {
+          "type": "number",
+          "minimum": 0,
+          "examples": [1250.00]
+        },
+        "currency": {
+          "type": "string",
+          "description": "Код валюты (ISO 4217)",
+          "minLength": 3,
+          "maxLength": 3,
+          "examples": ["USD"]
+        }
+      },
+      "required": ["value", "currency"]
+    },
+    "prepaidAmount": {
+      "type": "object",
+      "description": "Уже оплаченная сумма (депозит/предоплата)",
+      "properties": {
+        "value": {
+          "type": "number",
+          "minimum": 0,
+          "examples": [300.00]
+        },
+        "currency": {
+          "type": "string",
+          "description": "Код валюты (ISO 4217)",
+          "minLength": 3,
+          "maxLength": 3,
+          "examples": ["USD"]
+        }
+      },
+      "required": ["value", "currency"]
+    },
+    "addOns": {
+      "type": "array",
+      "description": "Список дополнительных услуг",
+      "items": {
+        "type": "object",
+        "properties": {
+          "serviceType": {
+            "type": "string",
+            "description": "Тип услуги",
+            "examples": ["Airport Shuttle"]
+          },
+          "serviceDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата предоставления услуги (если применимо)",
+            "examples": ["2026-09-15"]
+          },
+          "servicePrice": {
+            "type": "object",
+            "description": "Стоимость услуги",
+            "properties": {
+              "value": {
+                "type": "number",
+                "minimum": 0,
+                "examples": [45.00]
+              },
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3,
+                "examples": ["USD"]
+              }
+            },
+            "required": ["value", "currency"]
+          },
+          "isDaily": {
+            "type": "boolean",
+            "description": "Признак, что услуга предоставляется ежедневно (например, завтрак)",
+            "examples": [true]
+          },
+          "dailyRate": {
+            "type": "object",
+            "description": "Цена за день (если isDaily = true)",
+            "properties": {
+              "value": {
+                "type": "number",
+                "minimum": 0,
+                "examples": [25.00]
+              },
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3,
+                "examples": ["USD"]
+              }
+            },
+            "required": ["value", "currency"]
+          }
+        },
+        "required": ["serviceType", "servicePrice"]
+      }
+    },
+    "remarks": {
+      "type": "string",
+      "description": "Дополнительные комментарии или особые пожелания",
+      "examples": ["Late check-in after 22:00, please leave key at reception."]
+    }
+  },
+  "required": ["reservationId", "guestProfileId", "stayDates", "accommodation", "occupancy", "reservationStatus", "totalAmount"],
+  "additionalProperties": false
+}

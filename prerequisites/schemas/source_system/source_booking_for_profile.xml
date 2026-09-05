@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Booking>
+    <!-- Ссылка на профиль гостя -->
+    <ProfileID>P-10042</ProfileID>
+    
+    <!-- Уникальный номер бронирования -->
+    <BookingID>B-2026-0001</BookingID>
+    
+    <!-- Даты заезда и выезда -->
+    <StayPeriod>
+        <CheckIn>2026-09-15</CheckIn>
+        <CheckOut>2026-09-20</CheckOut>
+    </StayPeriod>
+    
+    <!-- Информация о номере -->
+    <RoomDetails>
+        <RoomType>Deluxe Suite</RoomType>
+        <RoomNumber>401</RoomNumber>          <!-- Назначается при заселении, может отсутствовать -->
+        <BedConfiguration>King + Sofa</BedConfiguration>
+    </RoomDetails>
+    
+    <!-- Состав гостей -->
+    <GuestComposition>
+        <AdultCount>2</AdultCount>
+        <ChildCount>1</ChildCount>
+        <ChildrenAges>
+            <Age>7</Age>
+        </ChildrenAges>
+    </GuestComposition>
+    
+    <!-- Статус и финансы -->
+    <Status>Confirmed</Status>                <!-- Confirmed / CheckedIn / CheckedOut / Cancelled -->
+    <TotalPrice currency="USD">1250.00</TotalPrice>
+    <DepositPaid currency="USD">300.00</DepositPaid>
+    
+    <!-- Дополнительные услуги -->
+    <Services>
+        <Service>
+            <Type>Airport Shuttle</Type>
+            <Date>2026-09-15</Date>
+            <Price currency="USD">45.00</Price>
+        </Service>
+        <Service>
+            <Type>Breakfast</Type>
+            <Daily>true</Daily>
+            <PricePerDay currency="USD">25.00</PricePerDay>
+        </Service>
+    </Services>
+    
+    <!-- Комментарии или специальные запросы -->
+    <Remarks>Late check-in after 22:00, please leave key at reception.</Remarks>
+</Booking>

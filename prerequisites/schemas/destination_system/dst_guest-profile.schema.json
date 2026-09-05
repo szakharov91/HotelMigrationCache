@@ -1,0 +1,153 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schemas/guest-profile.json",
+  "title": "Guest Profile",
+  "description": "Базовые данные гостя для регистрации в отеле (версия для миграции)",
+  "type": "object",
+  "properties": {
+    "guestId": {
+      "type": "string",
+      "description": "Уникальный идентификатор профиля в системе-источнике",
+      "examples": ["P-10042"]
+    },
+    "person": {
+      "type": "object",
+      "description": "Личные данные гостя",
+      "properties": {
+        "givenName": {
+          "type": "string",
+          "description": "Имя",
+          "examples": ["Anna"]
+        },
+        "surname": {
+          "type": "string",
+          "description": "Фамилия",
+          "examples": ["Ivanova"]
+        },
+        "gender": {
+          "type": "string",
+          "enum": ["MALE", "FEMALE", "OTHER", "UNSPECIFIED"],
+          "description": "Пол"
+        },
+        "dateOfBirth": {
+          "type": "string",
+          "format": "date",
+          "description": "Дата рождения (YYYY-MM-DD)",
+          "examples": ["1987-05-12"]
+        },
+        "citizenship": {
+          "type": "string",
+          "description": "Код гражданства (ISO 3166-1 alpha-2)",
+          "minLength": 2,
+          "maxLength": 2,
+          "examples": ["RU"]
+        }
+      },
+      "required": ["givenName", "surname", "gender", "dateOfBirth", "citizenship"]
+    },
+    "communication": {
+      "type": "object",
+      "description": "Контактные данные",
+      "properties": {
+        "phoneNumber": {
+          "type": "string",
+          "description": "Номер телефона (в международном формате)",
+          "examples": ["+79123456789"]
+        },
+        "emailAddress": {
+          "type": "string",
+          "format": "email",
+          "description": "Адрес электронной почты",
+          "examples": ["anna.ivanova@example.com"]
+        },
+        "postalAddress": {
+          "type": "object",
+          "description": "Почтовый адрес",
+          "properties": {
+            "streetLine": {
+              "type": "string",
+              "description": "Улица, дом, квартира",
+              "examples": ["Nevsky Prospekt, 15"]
+            },
+            "locality": {
+              "type": "string",
+              "description": "Город",
+              "examples": ["Saint Petersburg"]
+            },
+            "zipCode": {
+              "type": "string",
+              "description": "Почтовый индекс",
+              "examples": ["191186"]
+            },
+            "countryCode": {
+              "type": "string",
+              "description": "Код страны (ISO 3166-1 alpha-2)",
+              "minLength": 2,
+              "maxLength": 2,
+              "examples": ["RU"]
+            }
+          },
+          "required": ["streetLine", "locality", "zipCode", "countryCode"]
+        }
+      },
+      "required": ["phoneNumber", "emailAddress", "postalAddress"]
+    },
+    "idDocument": {
+      "type": "object",
+      "description": "Документ, удостоверяющий личность (паспорт, ID-карта и т.п.)",
+      "properties": {
+        "documentType": {
+          "type": "string",
+          "description": "Тип документа (например, Passport, IDCard)",
+          "examples": ["Passport"]
+        },
+        "documentNumber": {
+          "type": "string",
+          "description": "Номер документа",
+          "examples": ["45 67 891234"]
+        },
+        "issuedOn": {
+          "type": "string",
+          "format": "date",
+          "description": "Дата выдачи",
+          "examples": ["2015-08-20"]
+        },
+        "expiresOn": {
+          "type": "string",
+          "format": "date",
+          "description": "Дата истечения срока действия",
+          "examples": ["2025-08-19"]
+        },
+        "issuingAuthority": {
+          "type": "string",
+          "description": "Орган, выдавший документ",
+          "examples": ["MVD Russia"]
+        }
+      },
+      "required": ["documentType", "documentNumber", "issuedOn", "expiresOn", "issuingAuthority"]
+    },
+    "guestPreferences": {
+      "type": "object",
+      "description": "Дополнительные предпочтения гостя",
+      "properties": {
+        "language": {
+          "type": "string",
+          "description": "Предпочитаемый язык (код)",
+          "examples": ["RU"]
+        },
+        "smokingPreference": {
+          "type": "string",
+          "enum": ["YES", "NO", "UNSPECIFIED"],
+          "description": "Предпочтение по курению в номере"
+        },
+        "preferredBed": {
+          "type": "string",
+          "description": "Тип предпочитаемой кровати",
+          "examples": ["King", "Queen", "Twin"]
+        }
+      }
+    }
+  },
+  "required": ["guestId", "person", "communication", "idDocument"],
+  "additionalProperties": false
+}
