@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using HotelMigrationCache.Core.Utils;
+using HotelMigrationCache.Shared;
 using HotelMigrationCache.Shared.Common;
 using HotelMigrationCache.Shared.Contracts;
 using HotelMigrationCache.Shared.Otel;
@@ -20,7 +21,7 @@ public sealed class TcpServerInterface(IKeyValueStore storage, int port, IPAddre
     private readonly IPAddress _ipAddress = ipAddress;
     private readonly CancellationTokenSource _cts = new CancellationTokenSource();
     private readonly int _bufferSize = 8 * 1024;
-    private readonly SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(256, 256);
+    private readonly SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(ServerLimits.MaxServerConnections, ServerLimits.MaxServerConnections);
 
     private Socket? _listener;
     private bool _disposedValue;
@@ -100,6 +101,16 @@ public sealed class TcpServerInterface(IKeyValueStore storage, int port, IPAddre
     private byte[] ProcessStatsCommand()
         => CacheStatisticsSerializer.Serialize(_storage.GetStatistics());
 
+    private static string ClassifyResponse(byte[] response)
+    {
+        var span = response.AsSpan();
+        if (span.SequenceEqual(ServerResponses.AsBytes.OkResponse.AsSpan()))              return "OK";
+        if (span.SequenceEqual(ServerResponses.AsBytes.NilResponse.AsSpan()))             return "NIL";
+        if (span.SequenceEqual(ServerResponses.AsBytes.InvalidPayloadResponse.AsSpan()))  return "INVALID";
+        if (span.SequenceEqual(ServerResponses.AsBytes.UnknownCommandResponse.AsSpan()))  return "UNKNOWN";
+        return "DATA";
+    }
+
     private async Task ProcessClientAsync(Socket clientSocket, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(clientSocket);
@@ -124,14 +135,15 @@ public sealed class TcpServerInterface(IKeyValueStore storage, int port, IPAddre
                 ReadOnlyMemory<byte> readOnlyData = memory[..bytesReceived];
                 var result = CommandParser.Parse(readOnlyData.Span);
 
-                activity?.SetTag(CommandTelemetry.Tags.CommandName, result.Key.ToString());
+                var commandName = result.GetCommandKind().ToString();
+
+                activity?.SetTag(CommandTelemetry.Tags.CommandName, commandName);
                 activity?.SetTag(CommandTelemetry.Tags.PayloadSize, bytesReceived);
                 activity?.SetTag(CommandTelemetry.Tags.ClientEndpoint, clientSocket.RemoteEndPoint?.ToString());
 
                 var stopwatch = Stopwatch.StartNew();
 
                 byte[] response = ServerResponses.AsBytes.NilResponse;
-                string key = result.Key.ToString();
 
                 try
                 {
@@ -139,15 +151,15 @@ public sealed class TcpServerInterface(IKeyValueStore storage, int port, IPAddre
                 }
                 finally
                 {
-                    activity?.SetTag(CommandTelemetry.Tags.ResponseStatus, response);
+                    activity?.SetTag(CommandTelemetry.Tags.ResponseStatus, ClassifyResponse(response));
                     stopwatch.Stop();
                     CommandTelemetry.CommandsProcessedCounter.Add(
                         1,
-                        new KeyValuePair<string, object?>(CommandTelemetry.Tags.CommandName, key)
+                        new KeyValuePair<string, object?>(CommandTelemetry.Tags.CommandName, commandName)
                         );
                     CommandTelemetry.CommandsDurationHistogram.Record(
                         stopwatch.Elapsed.TotalMilliseconds,
-                        new KeyValuePair<string, object?>(CommandTelemetry.Tags.CommandName, key)
+                        new KeyValuePair<string, object?>(CommandTelemetry.Tags.CommandName, commandName)
                         );
                 }
 

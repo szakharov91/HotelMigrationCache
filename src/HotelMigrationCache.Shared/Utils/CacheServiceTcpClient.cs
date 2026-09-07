@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -8,25 +8,51 @@ using HotelMigrationCache.Shared.Protocol;
 
 namespace HotelMigrationCache.Shared.Utils;
 
+/// <summary>
+/// Клиент к TCP-кэшу с пулом из N постоянных соединений (1..<see cref="ServerLimits.MaxServerConnections"/>).
+/// Каждый запрос выбирается по round-robin в свободное соединение из пула;
+/// внутри одного соединения запись→чтение сериализуется семафором (иначе поплывёт framing).
+/// </summary>
 public sealed class CacheServiceTcpClient : ICacheServiceClient
 {
     private readonly string _host;
     private readonly int _port;
     private readonly int _bufferSize = 1024 * 1024;
-    private readonly SemaphoreSlim _connectLock = new(1, 1);
 
-    private TcpClient? _client;
+    private readonly TcpClient?[] _clients;
+    private readonly SemaphoreSlim[] _connectLocks;
+    private readonly SemaphoreSlim[] _ioLocks;
+    private int _rrCounter;
     private bool _disposedValue;
 
-    public CacheServiceTcpClient(string host, int port)
+    /// <param name="host">Хост сервера.</param>
+    /// <param name="port">Порт сервера.</param>
+    /// <param name="poolSize">
+    /// Размер пула TCP-соединений. Должен быть в диапазоне 1..<see cref="ServerLimits.MaxServerConnections"/>.
+    /// Значение выше - превышение серверного семафора одновременных клиентов.
+    /// </param>
+    public CacheServiceTcpClient(string host, int port, int poolSize = 1)
     {
+        if (poolSize < 1 || poolSize > ServerLimits.MaxServerConnections)
+            throw new ArgumentOutOfRangeException(nameof(poolSize), poolSize,
+                $"Pool size must be in [1..{ServerLimits.MaxServerConnections}].");
+
         _host = host;
         _port = port;
+        _clients = new TcpClient?[poolSize];
+        _connectLocks = new SemaphoreSlim[poolSize];
+        _ioLocks = new SemaphoreSlim[poolSize];
+        for (int i = 0; i < poolSize; i++)
+        {
+            _connectLocks[i] = new SemaphoreSlim(1, 1);
+            _ioLocks[i] = new SemaphoreSlim(1, 1);
+        }
     }
 
     public async Task<CacheServiceResponse> GetAsync(string key)
     {
-        byte[] response = await SendCommand(CommandBuilder.Build("GET", Encoding.UTF8.GetBytes(key)));
+        var idx = PickIndex();
+        byte[] response = await SendCommandAsync(idx, CommandBuilder.Build("GET", Encoding.UTF8.GetBytes(key)));
 
         try
         {
@@ -54,109 +80,117 @@ public sealed class CacheServiceTcpClient : ICacheServiceClient
             ArrayPool<byte>.Shared.Return(buffer);
         }
 
+        var idx = PickIndex();
         byte[] command = CommandBuilder.Build("SET", Encoding.UTF8.GetBytes(key), bytes);
-
-        var response = await SendCommand(command);
+        var response = await SendCommandAsync(idx, command);
         return new CacheServiceResponse(ParseServerResponse(response));
     }
 
     public async Task<CacheServiceResponse> DeleteAsync(string key)
     {
+        var idx = PickIndex();
         byte[] command = CommandBuilder.Build("DELETE", Encoding.UTF8.GetBytes(key));
-
-        var response = await SendCommand(command);
-
+        var response = await SendCommandAsync(idx, command);
         return new CacheServiceResponse(ParseServerResponse(response));
     }
 
     public async Task<CacheStatistics?> GetStatisticsAsync()
     {
-        // STATS не имеет ни key ни value — передаём пустые байты, сервер игнорирует.
+        var idx = PickIndex();
         byte[] command = CommandBuilder.Build("STATS", Array.Empty<byte>());
-        byte[] response = await SendCommand(command);
+        byte[] response = await SendCommandAsync(idx, command);
 
         if (!CacheStatisticsSerializer.TryDeserialize(response, out var stats))
             return null;
         return stats;
     }
 
-    public async Task ConnectAsync() => await EnsureConnectedAsync();
-
-    private async Task<byte[]> SendCommand(byte[] data)
+    public async Task ConnectAsync()
     {
-        await EnsureConnectedAsync();
-
-        var stream = _client!.GetStream();
-        await stream.WriteAsync(data);
-
-        // Читаем 4 байта длины (big-endian)
-        byte[] lengthBuffer = new byte[4];
-        int bytesRead = 0;
-        while (bytesRead < 4)
-        {
-            int n = await stream.ReadAsync(lengthBuffer, bytesRead, 4 - bytesRead);
-            if (n == 0) throw new EndOfStreamException("Server closed connection while reading length");
-            bytesRead += n;
-        }
-        int messageLength = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(lengthBuffer, 0));
-
-        if(messageLength > _bufferSize)
-        {
-            throw new InvalidOperationException($"Received message length {messageLength} exceeds buffer size {_bufferSize}");
-        }
-
-        // Читаем ровно messageLength байт
-        byte[] response = new byte[messageLength];
-        bytesRead = 0;
-        while (bytesRead < messageLength)
-        {
-            int n = await stream.ReadAsync(response, bytesRead, messageLength - bytesRead);
-            if (n == 0) throw new EndOfStreamException("Server closed connection while reading data");
-            bytesRead += n;
-        }
-
-        return response;
+        // Прогреваем все соединения параллельно, чтобы первые запросы не ждали handshakeов.
+        var tasks = new Task[_clients.Length];
+        for (int i = 0; i < _clients.Length; i++)
+            tasks[i] = EnsureConnectedAsync(i);
+        await Task.WhenAll(tasks);
     }
 
-    private async Task EnsureConnectedAsync()
+    private int PickIndex()
+        => (int)((uint)Interlocked.Increment(ref _rrCounter) % (uint)_clients.Length);
+
+    private async Task<byte[]> SendCommandAsync(int idx, byte[] data)
     {
-        await _connectLock.WaitAsync();
+        await EnsureConnectedAsync(idx);
+
+        await _ioLocks[idx].WaitAsync();
         try
         {
-            if (_client != null && _client.Connected)
-                return;
+            var stream = _clients[idx]!.GetStream();
+            await stream.WriteAsync(data);
 
-            // Закрываем старый, если есть
-            _client?.Close();
-            _client?.Dispose();
+            // Читаем 4 байта длины (big-endian).
+            byte[] lengthBuffer = new byte[4];
+            int bytesRead = 0;
+            while (bytesRead < 4)
+            {
+                int n = await stream.ReadAsync(lengthBuffer.AsMemory(bytesRead, 4 - bytesRead));
+                if (n == 0) throw new EndOfStreamException("Server closed connection while reading length");
+                bytesRead += n;
+            }
+            int messageLength = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(lengthBuffer, 0));
 
-            // Создаём новый и подключаем
-            _client = new TcpClient();
-            await _client.ConnectAsync(IPAddress.Parse(_host), _port);
+            if (messageLength > _bufferSize)
+                throw new InvalidOperationException($"Received message length {messageLength} exceeds buffer size {_bufferSize}");
+
+            byte[] response = new byte[messageLength];
+            bytesRead = 0;
+            while (bytesRead < messageLength)
+            {
+                int n = await stream.ReadAsync(response.AsMemory(bytesRead, messageLength - bytesRead));
+                if (n == 0) throw new EndOfStreamException("Server closed connection while reading data");
+                bytesRead += n;
+            }
+
+            return response;
         }
         finally
         {
-            _connectLock.Release();
+            _ioLocks[idx].Release();
         }
     }
 
-    private void Dispose(bool disposing)
+    private async Task EnsureConnectedAsync(int idx)
     {
-        if (!_disposedValue)
+        await _connectLocks[idx].WaitAsync();
+        try
         {
-            if (disposing)
-            {
-                _client?.Close();
-                _client?.Dispose();
-            }
+            if (_clients[idx] != null && _clients[idx]!.Connected)
+                return;
 
-            _disposedValue = true;
+            _clients[idx]?.Close();
+            _clients[idx]?.Dispose();
+
+            var newClient = new TcpClient();
+            await newClient.ConnectAsync(IPAddress.Parse(_host), _port);
+            _clients[idx] = newClient;
+        }
+        finally
+        {
+            _connectLocks[idx].Release();
         }
     }
 
     public void Dispose()
     {
-        Dispose(disposing: true);
+        if (_disposedValue) return;
+        _disposedValue = true;
+
+        for (int i = 0; i < _clients.Length; i++)
+        {
+            _clients[i]?.Close();
+            _clients[i]?.Dispose();
+            _connectLocks[i].Dispose();
+            _ioLocks[i].Dispose();
+        }
         GC.SuppressFinalize(this);
     }
 

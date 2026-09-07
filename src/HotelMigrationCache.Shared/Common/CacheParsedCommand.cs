@@ -11,14 +11,10 @@ public readonly ref struct CacheParsedCommand
     public bool IsEmpty() => CommandName.IsEmpty && Key.IsEmpty && Value.IsEmpty;
     public ServerCommandKind GetCommandKind()
     {
-        if (CommandName.SequenceEqual(ServerCommands.Get))
-            return ServerCommandKind.Get;
-        if (CommandName.SequenceEqual(ServerCommands.Set))
-            return ServerCommandKind.Set;
-        if (CommandName.SequenceEqual(ServerCommands.Delete))
-            return ServerCommandKind.Delete;
-        if (CommandName.SequenceEqual(ServerCommands.Stats))
-            return ServerCommandKind.Stats;
+        if (CommandName.SequenceEqual(ServerCommands.Get))      return ServerCommandKind.Get;
+        if (CommandName.SequenceEqual(ServerCommands.Set))      return ServerCommandKind.Set;
+        if (CommandName.SequenceEqual(ServerCommands.Delete))   return ServerCommandKind.Delete;
+        if (CommandName.SequenceEqual(ServerCommands.Stats))    return ServerCommandKind.Stats;
         return ServerCommandKind.Unknown;
     }
 }
