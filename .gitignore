@@ -118,3 +118,5 @@ x86/
 
 # Built Visual Studio Code Extensions
 *.vsix
+src/HotelMigrationCache.MigrationTool/logs
+tools
