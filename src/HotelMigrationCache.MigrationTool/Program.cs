@@ -1,303 +1,215 @@
-﻿using System.Net;
-using HotelMigrationCache.Shared.Common;
-using HotelMigrationCache.Shared.Contracts;
-using HotelMigrationCache.Shared.Utils;
+using System.Net;
+using HotelMigrationCache.Core.Interfaces;
+using HotelMigrationCache.Core.Store;
+using HotelMigrationCache.MigrationTool.Contracts;
+using HotelMigrationCache.MigrationTool.Domain;
+using Microsoft.Data.Sqlite;
+using HotelMigrationCache.MigrationTool.Options;
+using HotelMigrationCache.MigrationTool.Services;
+using HotelMigrationCache.MigrationTool.Services.Cache;
+using HotelMigrationCache.MigrationTool.Services.CloudApi;
+using HotelMigrationCache.MigrationTool.Services.Loader;
+using HotelMigrationCache.MigrationTool.Services.Migrators;
+using HotelMigrationCache.MigrationTool.Services.Processor;
+using HotelMigrationCache.MigrationTool.Services.Statistics;
+using HotelMigrationCache.MigrationTool.Services.Storage;
+using HotelMigrationCache.MigrationTool.Ui;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Serilog;
+using Spectre.Console;
 
 namespace HotelMigrationCache.MigrationTool;
-
-public sealed record CacheServiceOptions(string Host, int Port);
-
-public interface IInMemoryCacheService
-{
-    Task StartAsync();
-    Task<CacheServiceResponse> SetAsync(string key, CloudProfileData value);
-    Task<CacheServiceResponse> DeleteAsync(string key);
-    Task<CacheServiceResponse> GetAsync(string key);
-}
-
-public sealed class DummyCacheService : IInMemoryCacheService
-{
-    private readonly CacheServiceResponse _dummyResponse = new CacheServiceResponse(CacheServiceResponseCode.Nil, null);
-    
-    public DummyCacheService(ILogger<DummyCacheService> logger) => logger.LogInformation("Init {ServiceName}", nameof(DummyCacheService));
-
-    public async Task StartAsync() => await Task.CompletedTask;
-    public async Task<CacheServiceResponse> SetAsync(string key, CloudProfileData value) => await Task.FromResult(_dummyResponse);
-    public async Task<CacheServiceResponse> DeleteAsync(string key) => await Task.FromResult(_dummyResponse);
-    public async Task<CacheServiceResponse> GetAsync(string key) => await Task.FromResult(_dummyResponse);
-}
-
-public sealed class InMemoryCacheService : IInMemoryCacheService
-{
-    private readonly ICacheServiceClient _client;
-
-    public InMemoryCacheService(CacheServiceOptions options, ILogger<InMemoryCacheService> logger)
-    {
-        _client = new CacheServiceTcpClient(options.Host, options.Port);
-        logger.LogInformation("Init {ServiceName}", nameof(InMemoryCacheService));
-    }
-
-    public async Task StartAsync() => await _client.ConnectAsync();
-    public async Task<CacheServiceResponse> SetAsync(string key, CloudProfileData value) => await _client.SetAsync(key, value);
-    public async Task<CacheServiceResponse> DeleteAsync(string key) => await _client.DeleteAsync(key);
-    public async Task<CacheServiceResponse> GetAsync(string key) => await _client.GetAsync(key);
-}
-
-public interface IProfileMigrator
-{
-    Task MigrateProfilesAsync(CancellationToken ct);
-}
-
-public interface IReservationMigrator
-{
-    Task MigrateReservationsAsync(CancellationToken ct);
-}
-
-public sealed class ReservationMigrator(IInMemoryCacheService cacheService, ILogger<ReservationMigrator> logger) : IReservationMigrator
-{
-    private readonly IInMemoryCacheService _cacheService = cacheService;
-    private readonly ILogger<ReservationMigrator> _logger = logger;
-    public async Task MigrateReservationsAsync(CancellationToken ct)
-    {
-        _logger.LogInformation("Migrating reservations...");
-
-        // Реализация миграции бронирований
-
-        var srcId = "example-src-id-123456";
-
-        CloudProfileData? cloudProfileData = null;
-        var cacheResponse = await _cacheService.GetAsync(srcId);
-
-        if (cacheResponse.ResponseCode != CacheServiceResponseCode.Ok || cacheResponse.CloudProfileData == null)
-        {
-            _logger.LogWarning("Profile with SrcId {SrcId} not found in cache.", srcId);
-            // реализация логики достаем из локальной sqlite базы и кладем в кэш
-        }
-        else
-        {
-            cloudProfileData = cacheResponse.CloudProfileData;
-        }
-
-        // логируем данные cloudProfileData
-        _logger.LogInformation("Retrieved profile data: {@CloudProfileData}", cloudProfileData);
-
-        // процессим бронирование для нужного профайла
-
-        // Заполняем accompanying гостей (так же ищем в кэше по srcId, если нет -> ищем в локальной базе, если нет -> ищем в Cloud REST API)
-
-        await Task.CompletedTask;
-    }
-}
-
-public sealed class ProfileMigrator(IInMemoryCacheService cacheService, ILogger<ProfileMigrator> logger) : IProfileMigrator
-{
-    private readonly IInMemoryCacheService _cacheService = cacheService;
-    private readonly ILogger<ProfileMigrator> _logger = logger;
-    public async Task MigrateProfilesAsync(CancellationToken ct)
-    {
-        _logger.LogInformation("Migrating profiles...");
-
-        // Реализация миграции профайлов
-        var srcId = "example-src-id-123456";
-
-        CloudProfileData? cloudProfileData = null;
-        var cacheResponse = await _cacheService.GetAsync(srcId);
-
-        // базовая логика: ищем в кэше по srcId, если нет -> ищем в локальной базе, если нет -> ищем в Cloud REST API)
-
-        if (cacheResponse.ResponseCode != CacheServiceResponseCode.Ok || cacheResponse.CloudProfileData == null)
-        {
-            _logger.LogWarning("Profile with SrcId {SrcId} not found in cache.", srcId);
-            // реализация логики достаем из локальной sqlite базы и кладем в кэш
-        }
-        else
-        {
-            cloudProfileData = cacheResponse.CloudProfileData;
-        }
-        
-        // логируем данные cloudProfileData
-        _logger.LogInformation("Retrieved profile data: {@CloudProfileData}", cloudProfileData);
-
-        await Task.CompletedTask;
-    }
-}
-
-public interface IMigrationProcessor
-{
-    /// <summary>Читаем исходные файлы, сортируем сначала профайлы, затем брони, складываем их в локальную sqlite базу</summary>
-    Task InitSourceFilesAsync(string sourceDirectory, CancellationToken ct);
-
-    /// <summary>Мигрируем профайлы</summary>
-    Task MigrateProfilesAsync(CancellationToken ct);
-
-    /// <summary>Мигрируем брони</summary>
-    Task MigrateReservationsAsync(CancellationToken ct);
-
-    /// <summary>Получаем отчет по миграции</summary>
-    Task SummarizeStatisticsAsync(CancellationToken ct);
-
-}
-
-public sealed class BasicMigrationProcessor(IProfileMigrator profileMigrator, IReservationMigrator reservationMigrator, ILogger<BasicMigrationTool> logger) : IMigrationProcessor
-{
-    private readonly IProfileMigrator _profileMigrator = profileMigrator;
-    private readonly IReservationMigrator _reservationMigrator = reservationMigrator;
-    private readonly ILogger<BasicMigrationTool> _logger = logger;
-
-    public async Task InitSourceFilesAsync(string sourceDirectory, CancellationToken ct)
-    {
-        _logger.LogInformation("Initializing source files from directory: {SourceDirectory}", sourceDirectory);
-
-        // Реализация чтения исходных файлов и подготовки данных для миграции
-        await Task.CompletedTask;
-    }
-    public async Task MigrateProfilesAsync(CancellationToken ct)
-    {
-        _logger.LogInformation("Migrating profiles...");
-
-        // Реализация миграции профайлов
-        await _profileMigrator.MigrateProfilesAsync(ct);
-    }
-    public async Task MigrateReservationsAsync(CancellationToken ct)
-    {
-        _logger.LogInformation("Migrating reservations...");
-
-        // Реализация миграции бронирований
-        await _reservationMigrator.MigrateReservationsAsync(ct);
-    }
-    public async Task SummarizeStatisticsAsync(CancellationToken ct)
-    {
-        _logger.LogInformation("Summarizing migration statistics...");
-
-        // Реализация получения отчета по миграции
-        await Task.CompletedTask;
-    }
-}
-
-public interface IMigrationTool
-{
-    Task MigrateAsync(CancellationToken ct);
-}
-
-public sealed class BasicMigrationTool(IMigrationProcessor migrationProcessor) : IMigrationTool
-{
-    public async Task MigrateAsync(CancellationToken ct)
-    {
-        await migrationProcessor.InitSourceFilesAsync("source", ct);
-        await migrationProcessor.MigrateProfilesAsync(ct);
-        await migrationProcessor.MigrateReservationsAsync(ct);
-        await migrationProcessor.SummarizeStatisticsAsync(ct);
-    }
-}
-
-public class MigrationBackgroundService : BackgroundService
-{
-    private readonly IInMemoryCacheService _cacheService;
-    private readonly IMigrationTool _migrationTool;
-    private readonly ILogger<MigrationBackgroundService> _logger;
-
-    public MigrationBackgroundService(
-        IInMemoryCacheService cacheService,
-        IMigrationTool migrationTool,
-        ILogger<MigrationBackgroundService> logger)
-    {
-        _cacheService = cacheService;
-        _migrationTool = migrationTool;
-        _logger = logger;
-    }
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        try
-        {
-            _logger.LogInformation("Starting background service...");
-
-            // Запускаем кэш
-            await _cacheService.StartAsync();
-
-            // Запускаем миграцию
-            await _migrationTool.MigrateAsync(stoppingToken);
-
-            _logger.LogInformation("Background service has completed its work.");
-        }
-        catch (OperationCanceledException ocex)
-        {
-            _logger.LogWarning(ocex, "Background service was stopped by request.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error in background service.");
-            throw; // можно перебросить, чтобы хост аварийно завершился
-        }
-    }
-}
 
 public static class Program
 {
     public static async Task Main(string[] args)
     {
-        Console.WriteLine("Welcome to PMS Migration tool!");
-        Console.WriteLine("Press 'Q' to gracefully stop the application.");
+        var compare = args.Contains("--compare");
+        var useCacheService = !args.Contains("--no-cache");
+        // Флаг для запуска из Demo-orchestrator: cache TCP server поднят внешним процессом,
+        // не пытаемся стартовать in-process — иначе конфликт по порту.
+        var _externalCacheServer = args.Contains("--external-cache-server");
+        _ = _externalCacheServer; // resolved by RunCompareAsync-body actually skipping in-process startup
 
-        bool useCacheService = true;
-        var cacheServiceOptions = new CacheServiceOptions(IPAddress.Loopback.ToString(), 3456);
+        var solutionRoot = FindSolutionRoot();
+        var artifacts = Path.Combine(solutionRoot, "artifacts");
+        Directory.CreateDirectory(artifacts);
 
-        // Создаем и настраиваем хост приложения
-        var host = Host.CreateDefaultBuilder(args)
-            
-            // Подключаем логирование
+        var migrationOptions = new MigrationOptions(
+            SourceProfilesDirectory: Path.Combine(solutionRoot, "prerequisites", "data_for_migration", "sim-prod", "10-50", "profiles"),
+            SourceBookingsDirectory: Path.Combine(solutionRoot, "prerequisites", "data_for_migration", "sim-prod", "10-50", "reservations"),
+            MigrationDbPath: Path.Combine(artifacts, "migration.db"),
+            UseCacheService: useCacheService,
+            // Демо-масштаб: 500 профайлов + 2000 броней. 0 = полный прогон.
+            MaxProfilesToMigrate: 0,
+            MaxReservationsToMigrate: 0,
+            Concurrency: MigrationConcurrency.Ten);
+
+        var cacheOptions = new CacheServiceOptions(IPAddress.Loopback.ToString(), 3456);
+        var cloudOptions = new CloudApiOptions(
+            CloudDbPath: Path.Combine(artifacts, "cloud.db"),
+            MinLatencyMs: 200,
+            MaxLatencyMs: 3000);
+        var pricingOptions = new PricingOptions(
+            CostPer10kCalls: 20m,           // $20 / 10 000 calls (стандартный vendor rate)
+            ThrottlingOverheadFactor: 1.35m, // 35% retry-каскад при rate-limit'ах
+            ProjectedRecordCount: 25_000);  // прогноз: 5000 профайлов + 20000 броней
+
+        if (compare)
+        {
+            await RunCompareAsync(migrationOptions, cacheOptions, cloudOptions, pricingOptions);
+            return;
+        }
+
+        await RunOnceAsync(migrationOptions, cacheOptions, cloudOptions, pricingOptions);
+
+        Console.WriteLine("Press <Enter> key to exit...");
+        Console.ReadLine();
+    }
+
+    // Два прогона в одном процессе: сначала без кэша, потом с ним.
+    // Между прогонами удаляем БД миграции и облака; для второго прогона поднимаем
+    // внутрипроцессный TCP-сервер кэша со свежим InMemoryKeyValueStore — так compare
+    // самодостаточен и оба прогона стартуют «с чистого листа».
+    private static async Task RunCompareAsync(
+        MigrationOptions baseOptions,
+        CacheServiceOptions cacheOptions,
+        CloudApiOptions cloudOptions,
+        PricingOptions pricingOptions)
+    {
+        AnsiConsole.Write(new Rule("[bold yellow]Compare mode: run 1/2 · NO cache[/]").Centered());
+        AnsiConsole.WriteLine();
+
+        DeleteArtifacts(baseOptions.MigrationDbPath, cloudOptions.CloudDbPath);
+        var noCache = await RunOnceAsync(baseOptions with { UseCacheService = false }, cacheOptions, cloudOptions, pricingOptions);
+
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(new Rule("[bold yellow]Compare mode: run 2/2 · WITH cache (in-process TCP server)[/]").Centered());
+        AnsiConsole.WriteLine();
+
+        DeleteArtifacts(baseOptions.MigrationDbPath, cloudOptions.CloudDbPath);
+
+
+
+        await Task.Delay(300); // даём слушателю прогреться
+
+        MigrationStatisticsSnapshot withCache;
+        try
+        {
+            withCache = await RunOnceAsync(baseOptions with { UseCacheService = true }, cacheOptions, cloudOptions, pricingOptions);
+        }
+        finally
+        {
+            //d
+        }
+
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(new Rule("[bold yellow]Comparison[/]").Centered());
+        var ui = new SpectreConsoleUi();
+        ui.RenderComparisonTable(noCache, withCache);
+
+        Console.WriteLine("Press <Enter> key to exit...");
+        Console.ReadLine();
+    }
+
+    private static async Task<MigrationStatisticsSnapshot> RunOnceAsync(
+        MigrationOptions migrationOptions,
+        CacheServiceOptions cacheOptions,
+        CloudApiOptions cloudOptions,
+        PricingOptions pricingOptions)
+    {
+        // Не используем host.RunAsync() — он диспоузит host в finally, и Services становятся недоступны.
+        // Разбиваем на Start + WaitForShutdown, снимаем статистику до Dispose.
+        var host = BuildHost(migrationOptions, cacheOptions, cloudOptions, pricingOptions);
+        try
+        {
+            await host.StartAsync();
+            await host.WaitForShutdownAsync();
+            var stats = host.Services.GetRequiredService<IMigrationStatistics>();
+            return stats.Snapshot();
+        }
+        finally
+        {
+            if (host is IAsyncDisposable ad) await ad.DisposeAsync();
+            else host.Dispose();
+        }
+    }
+
+    private static IHost BuildHost(
+        MigrationOptions migrationOptions,
+        CacheServiceOptions cacheOptions,
+        CloudApiOptions cloudOptions,
+        PricingOptions pricingOptions) =>
+        Host.CreateDefaultBuilder()
             .UseSerilog((context, services, config) => config
-                    .WriteTo.Console() // пишем в консоль
-                    .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day))
-
-            // Настройка зависимостей
-            .ConfigureServices((context, services) =>
+                // Spectre-sink: логи и Progress-бар сосуществуют без разрушения UI.
+                .WriteTo.Spectre()
+                .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day))
+            .ConfigureServices((_, services) =>
             {
-                // Базовые настройки для сервиса кэширования
-                services.AddSingleton(cacheServiceOptions);
+                services.AddSingleton(migrationOptions);
+                services.AddSingleton(cacheOptions);
+                services.AddSingleton(cloudOptions);
+                services.AddSingleton(pricingOptions);
 
-                // Регистрируем сервисы
+                if (migrationOptions.UseCacheService)
+                {
+                    services.AddSingleton<ICacheService, TcpCacheService>();
+                    services.AddSingleton<IReferenceCache, InMemoryReferenceCache>();
+                }
+                else
+                {
+                    services.AddSingleton<ICacheService, DummyCacheService>();
+                    services.AddSingleton<IReferenceCache, NoopReferenceCache>();
+                }
 
-                if(useCacheService) services.AddSingleton<IInMemoryCacheService, InMemoryCacheService>();
-                else services.AddSingleton<IInMemoryCacheService, DummyCacheService>();
-
+                services.AddSingleton<IMigrationUi, SpectreConsoleUi>();
+                services.AddSingleton<ISourceFilesLoader, XmlSourceFilesLoader>();
+                services.AddSingleton<IMigrationRepository, SqliteMigrationRepository>();
+                services.AddSingleton<IRelationshipQueue, SqliteRelationshipQueue>();
+                services.AddSingleton<ICloudApiClient, SimulatedCloudApiClient>();
+                services.AddSingleton<IMigrationStatistics, MigrationStatistics>();
+                services.AddSingleton<CacheTelemetryCollector>();
+                services.AddSingleton<JaegerTraceReader>();
                 services.AddSingleton<IProfileMigrator, ProfileMigrator>();
                 services.AddSingleton<IReservationMigrator, ReservationMigrator>();
-                services.AddSingleton<IMigrationProcessor, BasicMigrationProcessor>();
-                
-                services.AddSingleton<IMigrationTool, BasicMigrationTool>();
+                services.AddSingleton<IMigrationProcessor, MigrationProcessor>();
+                services.AddSingleton<IMigrationTool, Services.MigrationTool>();
 
                 services.AddHostedService<MigrationBackgroundService>();
             })
             .Build();
 
-        using var cts = new CancellationTokenSource(); // для корректной остановки приложения
+    private static void DeleteArtifacts(params string[] paths)
+    {
+        // Microsoft.Data.Sqlite при Pooling=true держит соединения в пуле после Dispose,
+        // и файлы БД остаются заблокированными. Принудительно чистим пул перед удалением.
+        SqliteConnection.ClearAllPools();
 
-        _ = Task.Run(() =>
+        foreach (var path in paths)
         {
-            while (true)
+            foreach (var suffix in new[] { "", "-wal", "-shm" })
             {
-                if (Console.KeyAvailable)
+                var f = path + suffix;
+                if (File.Exists(f))
                 {
-                    var key = Console.ReadKey(intercept: true).Key;
-                    if (key == ConsoleKey.Q)
+                    try { File.Delete(f); }
+                    catch (IOException ex)
                     {
-                        Console.WriteLine("\nStop signal received, shutting down gracefully...");
-                        cts.Cancel();
-                        break;
+                        AnsiConsole.MarkupLine($"[red]Could not delete {f}: {Markup.Escape(ex.Message)}[/]");
                     }
                 }
-                Thread.Sleep(100);
             }
-        });
+        }
+    }
 
-        // Запускаем хост с этим токеном – при его отмене хост остановится
-        await host.RunAsync(cts.Token);
-
-        Console.WriteLine("Application has been stopped gracefully.");
+    // Поднимаемся вверх, пока не найдём .slnx — путь к prerequisites/ не зависит от bin/Debug/… .
+    private static string FindSolutionRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && dir.GetFiles("*.slnx").Length == 0 && dir.GetFiles("*.sln").Length == 0)
+            dir = dir.Parent;
+        return dir?.FullName ?? AppContext.BaseDirectory;
     }
 }

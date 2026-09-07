@@ -1,0 +1,42 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    # Флашим часто, чтобы в Jaeger данные появлялись почти сразу.
+    timeout: 1s
+    send_batch_size: 512
+
+exporters:
+  # Traces → Jaeger по OTLP gRPC.
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+  # Debug — печатает то, что прошло через коллектор (полезно проверить, что метрики долетают).
+  debug:
+    verbosity: normal
+
+extensions:
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [zpages]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/jaeger, debug]
+    metrics:
+      # Jaeger не хранит метрики — отправляем только в debug.
+      # (Для полноценного хранения метрик подключается Prometheus, за рамками демо.)
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]

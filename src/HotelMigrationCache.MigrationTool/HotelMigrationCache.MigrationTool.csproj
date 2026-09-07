@@ -8,7 +8,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\HotelMigrationCache.Domain\HotelMigrationCache.Shared.csproj" />
+		<ProjectReference Include="..\HotelMigrationCache.Shared\HotelMigrationCache.Shared.csproj" />
+		<ProjectReference Include="..\HotelMigrationCache.Core\HotelMigrationCache.Core.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -20,5 +21,8 @@
 		<PackageReference Include="Serilog.Extensions.Hosting" />
 		<PackageReference Include="Serilog.Sinks.Console" />
 		<PackageReference Include="Serilog.Sinks.File" />
+		<PackageReference Include="Dapper" />
+		<PackageReference Include="Microsoft.Data.Sqlite" />
+		<PackageReference Include="Spectre.Console" />
 	</ItemGroup>
 </Project>

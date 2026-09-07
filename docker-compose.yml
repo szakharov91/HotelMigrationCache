@@ -1,0 +1,30 @@
+services:
+  # Collector receives OTLP and forwards traces to Jaeger.
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    container_name: hmc-otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+      # zpages: контейнер слушает 55679, но host-порт сдвинут на 15679,
+      # т.к. Windows часто резервирует 55679 (netsh int ipv4 show excludedportrange).
+      # UI: http://localhost:15679/debug/servicez
+      - "15679:55679"
+    depends_on:
+      - jaeger
+
+  # Jaeger UI + OTLP receiver. Всё-в-одном.
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: hmc-jaeger
+    restart: unless-stopped
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"  # Jaeger UI: http://localhost:16686
+      - "14250:14250"  # collector.grpc (jaeger)
+      - "14268:14268"  # collector.thrift (jaeger)
