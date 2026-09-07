@@ -175,14 +175,15 @@ public static class Program
 
             try
             {
-                var response = Random.Shared.Next() % 2 == 0
-                    ? await client.SetAsync(profile.SrcId!, profile)
-                    : await client.GetAsync(profile.SrcId!);
+                // SetAsync -> CacheServiceResponse; GetAsync<T> -> CacheServiceResponse<T>.
+                // Разные типы после обобщения интерфейса — вытаскиваем ResponseCode отдельно.
+                CacheServiceResponseCode code;
+                if (Random.Shared.Next() % 2 == 0)
+                    code = (await client.SetAsync(profile.SrcId!, profile)).ResponseCode;
+                else
+                    code = (await client.GetAsync<CloudProfileData>(profile.SrcId!)).ResponseCode;
 
-                if (response is null)
-                    return Response.Fail();
-
-                return response.ResponseCode switch
+                return code switch
                 {
                     CacheServiceResponseCode.Ok => Response.Ok(),
                     CacheServiceResponseCode.Nil => Response.Ok(),
@@ -206,14 +207,15 @@ public static class Program
 
             try
             {
-                var response = Random.Shared.Next() % 2 == 0
-                    ? await client.SetAsync(profile.SrcId!, profile)
-                    : await client.GetAsync(profile.SrcId!);
+                // SetAsync -> CacheServiceResponse; GetAsync<T> -> CacheServiceResponse<T>.
+                // Разные типы после обобщения интерфейса — вытаскиваем ResponseCode отдельно.
+                CacheServiceResponseCode code;
+                if (Random.Shared.Next() % 2 == 0)
+                    code = (await client.SetAsync(profile.SrcId!, profile)).ResponseCode;
+                else
+                    code = (await client.GetAsync<CloudProfileData>(profile.SrcId!)).ResponseCode;
 
-                if (response is null)
-                    return Response.Fail();
-
-                return response.ResponseCode switch
+                return code switch
                 {
                     CacheServiceResponseCode.Ok => Response.Ok(),
                     CacheServiceResponseCode.Nil => Response.Ok(),

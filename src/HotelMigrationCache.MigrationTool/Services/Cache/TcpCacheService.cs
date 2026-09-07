@@ -31,13 +31,15 @@ public sealed class TcpCacheService : ICacheService, IDisposable
 
     public Task StartAsync(CancellationToken ct) => _client.ConnectAsync();
 
-    public async Task<CacheServiceResponse> GetAsync(string key)
+    public async Task<CacheServiceResponse<TValue>> GetAsync<TValue>(string key)
+        where TValue : IBinarySerializable<TValue>
     {
         using var _ = _stats.TrackCacheOperation();
-        return await _client.GetAsync(key);
+        return await _client.GetAsync<TValue>(key);
     }
 
-    public async Task<CacheServiceResponse> SetAsync(string key, CloudProfileData value)
+    public async Task<CacheServiceResponse> SetAsync<TValue>(string key, TValue value)
+        where TValue : IBinarySerializable<TValue>
     {
         using var _ = _stats.TrackCacheOperation();
         return await _client.SetAsync(key, value);

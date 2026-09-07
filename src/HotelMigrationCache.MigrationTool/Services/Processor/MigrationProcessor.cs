@@ -307,11 +307,11 @@ public sealed class MigrationProcessor : IMigrationProcessor
     {
         try
         {
-            var cached = await _cache.GetAsync(srcId);
-            if (cached.ResponseCode == CacheServiceResponseCode.Ok && cached.CloudProfileData is not null)
+            var cached = await _cache.GetAsync<CloudProfileData>(srcId);
+            if (cached.ResponseCode == CacheServiceResponseCode.Ok && cached.Value is not null)
             {
                 _stats.IncrementCacheHit();
-                return cached.CloudProfileData.DstId;
+                return cached.Value.DstId;
             }
         }
         catch { /* fall through */ }

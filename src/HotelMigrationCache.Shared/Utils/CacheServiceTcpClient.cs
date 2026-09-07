@@ -49,23 +49,27 @@ public sealed class CacheServiceTcpClient : ICacheServiceClient
         }
     }
 
-    public async Task<CacheServiceResponse> GetAsync(string key)
+    public async Task<CacheServiceResponse<TValue>> GetAsync<TValue>(string key)
+        where TValue : IBinarySerializable<TValue>
     {
         var idx = PickIndex();
         byte[] response = await SendCommandAsync(idx, CommandBuilder.Build("GET", Encoding.UTF8.GetBytes(key)));
 
         try
         {
-            var value = CloudProfileData.DeserializeFromBinary(new MemoryStream(response));
-            return new CacheServiceResponse(CacheServiceResponseCode.Ok, value);
+            // static abstract на IBinarySerializable<TValue> — компайл-тайм разрешение через констрейнт.
+            var value = TValue.DeserializeFromBinary(new MemoryStream(response));
+            return new CacheServiceResponse<TValue>(CacheServiceResponseCode.Ok, value);
         }
         catch
         {
-            return new CacheServiceResponse(ParseServerResponse(response));
+            // Payload не парсится как TValue — значит это короткий текстовый ответ сервера (NIL/INVALID/...).
+            return new CacheServiceResponse<TValue>(ParseServerResponse(response));
         }
     }
 
-    public async Task<CacheServiceResponse> SetAsync(string key, CloudProfileData value)
+    public async Task<CacheServiceResponse> SetAsync<TValue>(string key, TValue value)
+        where TValue : IBinarySerializable<TValue>
     {
         byte[] buffer = ArrayPool<byte>.Shared.Rent(256);
         byte[] bytes;
@@ -93,6 +97,8 @@ public sealed class CacheServiceTcpClient : ICacheServiceClient
         var response = await SendCommandAsync(idx, command);
         return new CacheServiceResponse(ParseServerResponse(response));
     }
+
+
 
     public async Task<CacheStatistics?> GetStatisticsAsync()
     {
