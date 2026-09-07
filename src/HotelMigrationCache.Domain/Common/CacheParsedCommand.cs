@@ -17,6 +17,8 @@ public readonly ref struct CacheParsedCommand
             return ServerCommandKind.Set;
         if (CommandName.SequenceEqual(ServerCommands.Delete))
             return ServerCommandKind.Delete;
+        if (CommandName.SequenceEqual(ServerCommands.Stats))
+            return ServerCommandKind.Stats;
         return ServerCommandKind.Unknown;
     }
 }

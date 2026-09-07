@@ -69,6 +69,17 @@ public sealed class CacheServiceTcpClient : ICacheServiceClient
         return new CacheServiceResponse(ParseServerResponse(response));
     }
 
+    public async Task<CacheStatistics?> GetStatisticsAsync()
+    {
+        // STATS не имеет ни key ни value — передаём пустые байты, сервер игнорирует.
+        byte[] command = CommandBuilder.Build("STATS", Array.Empty<byte>());
+        byte[] response = await SendCommand(command);
+
+        if (!CacheStatisticsSerializer.TryDeserialize(response, out var stats))
+            return null;
+        return stats;
+    }
+
     public async Task ConnectAsync() => await EnsureConnectedAsync();
 
     private async Task<byte[]> SendCommand(byte[] data)

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using HotelMigrationCache.Core.Utils;
+using HotelMigrationCache.Shared.Common;
 using HotelMigrationCache.Shared.Contracts;
 using HotelMigrationCache.Shared.Otel;
 using HotelMigrationCache.Shared.Protocol;
@@ -96,6 +97,9 @@ public sealed class TcpServerInterface(IKeyValueStore storage, int port, IPAddre
     private byte[] ProcessDeleteCommand(byte[] key)
         => _storage.Delete(key) ? ServerResponses.AsBytes.OkResponse : ServerResponses.AsBytes.NilResponse;
 
+    private byte[] ProcessStatsCommand()
+        => CacheStatisticsSerializer.Serialize(_storage.GetStatistics());
+
     private async Task ProcessClientAsync(Socket clientSocket, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(clientSocket);
@@ -179,6 +183,7 @@ public sealed class TcpServerInterface(IKeyValueStore storage, int port, IPAddre
             ServerCommandKind.Get => ProcessGetCommand(parsed.Key.ToArray()),
             ServerCommandKind.Set => ProcessSetCommand(parsed.Key.ToArray(), parsed.Value.ToArray()),
             ServerCommandKind.Delete => ProcessDeleteCommand(parsed.Key.ToArray()),
+            ServerCommandKind.Stats => ProcessStatsCommand(),
             _ => ServerResponses.AsBytes.UnknownCommandResponse
         };
     }
