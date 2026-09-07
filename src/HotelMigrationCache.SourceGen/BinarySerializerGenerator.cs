@@ -200,6 +200,7 @@ public class BinarySerializerGenerator : IIncrementalGenerator
             writer.Write(this.{property.Name});
         }}",
         SerializationKind.DateTime => $"writer.Write(this.{property.Name}.ToBinary());",
+        SerializationKind.DateOnly => $"writer.Write(this.{property.Name}.DayNumber);",
         _ => $"// Unsupported type: {property.TypeName}"
     };
 
@@ -209,6 +210,7 @@ public class BinarySerializerGenerator : IIncrementalGenerator
         SerializationKind.String =>
             $"result.{property.Name} = reader.ReadBoolean() ? reader.ReadString() : null;",
         SerializationKind.DateTime => $"result.{property.Name} = DateTime.FromBinary(reader.ReadInt64());",
+        SerializationKind.DateOnly => $"result.{property.Name} = System.DateOnly.FromDayNumber(reader.ReadInt32());",
         _ => $"// Unsupported type: {property.TypeName}"
     };
 
@@ -298,6 +300,8 @@ public class BinarySerializerGenerator : IIncrementalGenerator
         if (type.ToDisplayString() == "System.DateTime")
             return SerializationKind.DateTime;
 
+        if (type.ToDisplayString() == "System.DateOnly")
+            return SerializationKind.DateOnly;
 
 #pragma warning disable S1135 // Track uses of "TODO" tags
                              //TODO: Можно будет добавить другие поддерживаемые типы здесь
@@ -315,6 +319,7 @@ public class BinarySerializerGenerator : IIncrementalGenerator
         Primitive,
         String,
         DateTime,
+        DateOnly,
         Unsupported = 9999
     }
 
