@@ -7,7 +7,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\HotelMigrationCache.Domain\HotelMigrationCache.Shared.csproj" />
 		<ProjectReference Include="..\HotelMigrationCache.Shared\HotelMigrationCache.Shared.csproj" />
 	</ItemGroup>
 
