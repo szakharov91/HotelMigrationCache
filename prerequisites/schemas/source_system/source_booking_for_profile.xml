@@ -50,9 +50,18 @@
     <!-- Комментарии или специальные запросы -->
     <Remarks>Late check-in after 22:00, please leave key at reception.</Remarks>
 
-    <!-- Сопровождающие гости (необязательно; ссылки на другие ProfileID) -->
+    <!-- Сопровождающие гости (~50% броней; 2-6 ссылок на ProfileID) -->
     <AccompanyingGuests>
         <GuestProfileID>P-000123</GuestProfileID>
         <GuestProfileID>P-000456</GuestProfileID>
     </AccompanyingGuests>
+
+    <!-- Прикреплённые компании (~40% броней; агент, корпоративный клиент, туроператор) -->
+    <AttachedCompanies>
+        <CompanyProfileID>P-004321</CompanyProfileID>
+        <CompanyProfileID>P-004977</CompanyProfileID>
+    </AttachedCompanies>
+
+    <!-- Компания-плательщик для маршрутизации счетов (~30% броней; одна ссылка) -->
+    <BillingCompanyProfileID>P-004321</BillingCompanyProfileID>
 </Booking>

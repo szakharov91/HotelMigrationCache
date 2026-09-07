@@ -2,7 +2,13 @@
 <Profile>
     <!-- Уникальный идентификатор профиля в системе -->
     <ProfileID>P-10042</ProfileID>
-    
+
+    <!-- Тип профайла: Guest (гость), Company (компания-плательщик), Agent (турагент) -->
+    <ProfileType>Guest</ProfileType>
+
+    <!-- Corporate ID: заполняется для Company/Agent -->
+    <CorporateId>CORP-9876</CorporateId>
+
     <!-- Личные данные -->
     <PersonalInfo>
         <FirstName>Anna</FirstName>
@@ -46,4 +52,27 @@
         <MemberID>LP-000123456</MemberID>     <!-- Номер участника -->
         <ExpiryDate>2027-12-31</ExpiryDate>   <!-- Дата окончания членства -->
     </LoyaltyProgram>
+
+    <!-- AR-аккаунт (только для Company/Agent; ~60% компаний имеют счёт для расчётов) -->
+    <ARNumber>AR-000042</ARNumber>
+
+    <!-- Согласованные тарифы (только для Company/Agent; ~40% компаний) -->
+    <NegotiatedRates>
+        <Rate>
+            <RateCode>CORP-EARLY</RateCode>
+            <DiscountPercent>15</DiscountPercent>
+        </Rate>
+        <Rate>
+            <RateCode>CORP-STD</RateCode>
+            <DiscountPercent>10</DiscountPercent>
+        </Rate>
+    </NegotiatedRates>
+
+    <!-- Связи с другими профайлами (25% профайлов; batch-этап миграции) -->
+    <Relationships>
+        <Relationship>
+            <RelatedProfileID>P-10201</RelatedProfileID>
+            <RelationType>Employer</RelationType>       <!-- Employer / Spouse / Assistant / Parent -->
+        </Relationship>
+    </Relationships>
 </Profile>
