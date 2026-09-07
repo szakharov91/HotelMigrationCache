@@ -11,6 +11,8 @@
 	  <PackageReference Include="BenchmarkDotNet" />
 	  <PackageReference Include="Bogus" />
 	  <PackageReference Include="NBomber" />
+	  <!-- NBomber 6.5.0 собран под Spectre.Console 0.45.0. поэтому оверрайдим  -->
+	  <PackageReference Include="Spectre.Console" VersionOverride="0.45.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -7,6 +7,7 @@ using HotelMigrationCache.Shared.Common;
 
 namespace HotelMigrationCache.Benchmarks.Benchmarks;
 
+[MemoryDiagnoser]
 public class CloudProfileDataSerializationBenchmark
 {
     private CloudProfileData _profile = null!;

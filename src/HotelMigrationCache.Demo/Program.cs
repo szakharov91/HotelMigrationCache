@@ -21,6 +21,12 @@ public static class Program
     public static async Task Main(string[] args)
     {
         AnsiConsole.Write(new Rule("[bold yellow]HotelMigrationCache · Demo orchestrator[/]").Centered());
+
+        if (args.Contains("--bench"))
+        {
+            AnsiConsole.Write(new Rule("[bold yellow]BENCHMARK -> RUN ONLY CacheServerHostedService[/]").Centered());
+        }
+
         AnsiConsole.MarkupLine("[grey italic]OTLP endpoint: http://localhost:4317 · Jaeger UI: http://localhost:16686[/]");
         AnsiConsole.WriteLine();
 
@@ -57,7 +63,11 @@ public static class Program
         // Порядок регистрации HostedService важен: кэш-сервер стартует первым,
         // потом лончер MigrationTool. Внутри лончера есть небольшая задержка для гарантии.
         builder.Services.AddHostedService<CacheServerHostedService>();
-        builder.Services.AddHostedService<MigrationToolLauncher>();
+
+        if (!args.Contains("--bench"))
+        {
+            builder.Services.AddHostedService<MigrationToolLauncher>();
+        }
 
         builder.Logging.SetMinimumLevel(LogLevel.Information);
 
