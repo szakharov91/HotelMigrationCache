@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HotelMigrationCache.Core\HotelMigrationCache.Core.csproj" />
+    <ProjectReference Include="..\HotelMigrationCache.Shared\HotelMigrationCache.Shared.csproj" />
   </ItemGroup>
 
 </Project>
