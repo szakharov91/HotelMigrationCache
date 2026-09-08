@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>HotelMigrationCache.Benchmarks.Benchmarks.CloudProfileDataSerializationBenchmark-20260907-205125</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.14.0, Windows 11 (10.0.26200.9278)
+Unknown processor
+.NET SDK 10.0.400
+  [Host]     : .NET 10.0.11 (10.0.1126.37416), X64 RyuJIT AVX2
+  DefaultJob : .NET 10.0.11 (10.0.1126.37416), X64 RyuJIT AVX2
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method         </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Ratio</th><th>Gen0</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>SystemTextJson</td><td>515.3 ns</td><td>2.15 ns</td><td>1.79 ns</td><td>1.00</td><td>0.0658</td><td>312 B</td><td>1.00</td>
+</tr><tr><td>GeneratedBinary</td><td>192.5 ns</td><td>0.94 ns</td><td>0.83 ns</td><td>0.37</td><td>0.1121</td><td>528 B</td><td>1.69</td>
+</tr><tr><td>GeneratedBinaryPooled</td><td>167.7 ns</td><td>2.07 ns</td><td>1.73 ns</td><td>0.33</td><td>0.0527</td><td>248 B</td><td>0.79</td>
+</tr></tbody></table>
+</body>
+</html>

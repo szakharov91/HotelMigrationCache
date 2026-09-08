@@ -37,8 +37,8 @@ public static class Program
         Directory.CreateDirectory(artifacts);
 
         var migrationOptions = new MigrationOptions(
-            SourceProfilesDirectory: Path.Combine(solutionRoot, "prerequisites", "data_for_migration", "sim-prod", "10-50", "profiles"),
-            SourceBookingsDirectory: Path.Combine(solutionRoot, "prerequisites", "data_for_migration", "sim-prod", "10-50", "reservations"),
+            SourceProfilesDirectory: Path.Combine(solutionRoot, "prerequisites", "data_for_migration", "sim-prod", "100-500", "profiles"),
+            SourceBookingsDirectory: Path.Combine(solutionRoot, "prerequisites", "data_for_migration", "sim-prod", "100-500", "reservations"),
             MigrationDbPath: Path.Combine(artifacts, "migration.db"),
             UseCacheService: useCacheService,
             // Демо-масштаб: 500 профайлов + 2000 броней. 0 = полный прогон.

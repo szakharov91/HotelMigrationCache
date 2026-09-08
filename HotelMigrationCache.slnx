@@ -16,5 +16,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/HotelMigrationCache.Core.Tests/HotelMigrationCache.Core.Tests.csproj" />
+    <Project Path="tests/HotelMigrationCache.Shared.Tests/HotelMigrationCache.Shared.Tests.csproj" />
   </Folder>
 </Solution>
