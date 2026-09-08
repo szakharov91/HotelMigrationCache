@@ -19,7 +19,7 @@ services:
 
   # Jaeger UI + OTLP receiver. Всё-в-одном.
   jaeger:
-    image: jaegertracing/all-in-one:latest
+    image: jaegertracing/jaeger:latest
     container_name: hmc-jaeger
     restart: unless-stopped
     environment:

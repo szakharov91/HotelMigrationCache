@@ -126,8 +126,7 @@ public sealed class MigrationProcessor : IMigrationProcessor
 
     public async Task WarmReferenceCacheAsync(CancellationToken ct)
     {
-        _ui.WriteHeader("Step 2 · Warm reference cache",
-            "collect unique refs from source, load in parallel — miss'ы уйдут с критической тропы миграции");
+        _ui.WriteHeader("Step 2 · Warm reference cache", "collect unique refs from source, load in parallel");
 
         // Собираем уникальные значения из локальной БД (FileRawContent уже загружен на шаге Init).
         var uniqueRoomTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
