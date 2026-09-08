@@ -52,4 +52,4 @@ public sealed class CacheServerHostedService : BackgroundService
     }
 }
 
-public sealed record DemoOptions(int CachePort, string MigrationToolProject, string OtlpEndpoint);
+public sealed record DemoOptions(int CachePort, string MigrationToolProject, string OtlpEndpoint, bool Compare3 = false);

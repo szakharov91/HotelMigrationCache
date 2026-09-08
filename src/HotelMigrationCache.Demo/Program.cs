@@ -36,7 +36,8 @@ public static class Program
         var demoOptions = new DemoOptions(
             CachePort: 3456,
             MigrationToolProject: migrationToolProject,
-            OtlpEndpoint: "http://localhost:4317");
+            OtlpEndpoint: "http://localhost:4317",
+            Compare3: args.Contains("--compare3"));
 
         var builder = Host.CreateApplicationBuilder(args);
 

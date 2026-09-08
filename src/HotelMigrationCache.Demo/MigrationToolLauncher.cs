@@ -27,7 +27,9 @@ public sealed class MigrationToolLauncher : BackgroundService
         // Ждём, пока кэш-сервер точно начал слушать порт.
         await Task.Delay(750, stoppingToken);
 
-        AnsiConsole.MarkupLine($"[grey]Launching MigrationTool subprocess (--compare --external-cache-server)...[/]");
+        var compareFlag = _options.Compare3 ? "--compare3" : "--compare";
+        var runsLabel = _options.Compare3 ? "3 runs · no-cache/cache/cache-boosted" : "2 runs · no-cache vs cache";
+        AnsiConsole.MarkupLine($"[grey]Launching MigrationTool subprocess ({compareFlag} · {runsLabel}) --external-cache-server ...[/]");
 
         var psi = new ProcessStartInfo
         {
@@ -40,7 +42,7 @@ public sealed class MigrationToolLauncher : BackgroundService
         psi.ArgumentList.Add("run");
         psi.ArgumentList.Add("--no-build");
         psi.ArgumentList.Add("--");
-        psi.ArgumentList.Add("--compare"); // двойной прогон, для демострации сравнения
+        psi.ArgumentList.Add(compareFlag); // --compare (2 runs) или --compare3 (3 runs)
         psi.ArgumentList.Add("--external-cache-server"); // говорим эмуляции, что кэш внешний
 
         try

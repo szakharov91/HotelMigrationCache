@@ -9,7 +9,7 @@ public sealed class InMemoryKeyValueStore: IKeyValueStore
     private readonly Dictionary<byte[], byte[]> _keyValuePairs;
     private readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.NoRecursion);
     private long _hitCount, _missCount, _setCount, _deleteCount;
-    private bool _disposedValue;
+    private volatile bool _disposedValue;
     #endregion
 
     #region .ctors
@@ -19,6 +19,7 @@ public sealed class InMemoryKeyValueStore: IKeyValueStore
     #region public methods
     public void Set(byte[] key, byte[] value)
     {
+        ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(value);
 
@@ -36,6 +37,7 @@ public sealed class InMemoryKeyValueStore: IKeyValueStore
 
     public bool TryGet(byte[] key, out byte[] value)
     {
+        ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(key);
         _lock.EnterReadLock();
         try
@@ -59,6 +61,7 @@ public sealed class InMemoryKeyValueStore: IKeyValueStore
 
     public bool Delete(byte[] key)
     {
+        ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(key);
         _lock.EnterWriteLock();
         try
@@ -77,7 +80,24 @@ public sealed class InMemoryKeyValueStore: IKeyValueStore
         return false;
     }
 
-    public CacheStatistics GetStatistics() => new(_keyValuePairs.Count, _hitCount, _missCount, _setCount, _deleteCount);
+    public CacheStatistics GetStatistics()
+    {
+        ThrowIfDisposed();
+        _lock.EnterReadLock();
+        try
+        {
+            return new CacheStatistics(
+                _keyValuePairs.Count,
+                Interlocked.Read(ref _hitCount),
+                Interlocked.Read(ref _missCount),
+                Interlocked.Read(ref _setCount),
+                Interlocked.Read(ref _deleteCount));
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
+    }
 
     public void Dispose()
     {
@@ -89,15 +109,39 @@ public sealed class InMemoryKeyValueStore: IKeyValueStore
     #region private methods
     private void Dispose(bool disposing)
     {
-        if (!_disposedValue)
+        if (_disposedValue)
+            return;
+
+        if (disposing)
         {
-            if (disposing)
+            try
+            {
+                _lock.EnterWriteLock();
+                try
+                {
+                    if (_disposedValue)
+                        return;
+
+                    _keyValuePairs.Clear();
+                    _disposedValue = true;
+                }
+                finally
+                {
+                    _lock.ExitWriteLock();
+                }
+            }
+            finally
             {
                 _lock.Dispose();
             }
-
-            _disposedValue = true;
+            
         }
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (_disposedValue)
+            throw new ObjectDisposedException(nameof(InMemoryKeyValueStore));
     }
 
     #endregion

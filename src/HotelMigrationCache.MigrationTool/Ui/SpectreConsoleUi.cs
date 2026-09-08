@@ -323,6 +323,152 @@ public sealed class SpectreConsoleUi : IMigrationUi
         return $"{ts.TotalSeconds:F1} s";
     }
 
+    public void RenderComparisonTable3(
+        MigrationStatisticsSnapshot noCache,
+        MigrationStatisticsSnapshot cacheStandard,
+        MigrationStatisticsSnapshot cacheBoosted)
+    {
+        var table = new Table()
+            .Border(TableBorder.Heavy)
+            .Title("[bold yellow]Comparison: 3 scenarios (Oracle 50-rps budget context)[/]")
+            .AddColumn(new TableColumn("[bold]Metric[/]"))
+            .AddColumn(new TableColumn($"[bold](1) No cache · p={noCache.MigrationParallelism}[/]").Centered())
+            .AddColumn(new TableColumn($"[bold cyan](2) Cache · p={cacheStandard.MigrationParallelism}[/]").Centered())
+            .AddColumn(new TableColumn($"[bold green](3) Cache · p={cacheBoosted.MigrationParallelism} (boosted)[/]").Centered());
+
+        // === 1. Wall-clock ===
+        table.AddRow("[bold]⏱  Whole migration wall-clock[/]",
+            $"[cyan]{FormatDurationLong(noCache.Overall)}[/]",
+            $"[bold cyan]{FormatDurationLong(cacheStandard.Overall)}[/] [grey]{SpeedupLabel(noCache.Overall, cacheStandard.Overall)}[/]",
+            $"[bold green]{FormatDurationLong(cacheBoosted.Overall)}[/] [grey]{SpeedupLabel(noCache.Overall, cacheBoosted.Overall)}[/]");
+
+        table.AddEmptyRow();
+
+        // === 2. Avg per record ===
+        table.AddRow("[bold]📦 One record on average[/]", "", "", "");
+        table.AddRow($"  Profile ([grey]{cacheStandard.ProfilesSucceeded} records[/])",
+            FormatMsHuman(noCache.ProfileAverage),
+            FormatMsHuman(cacheStandard.ProfileAverage),
+            FormatMsHuman(cacheBoosted.ProfileAverage));
+        table.AddRow($"  Reservation ([grey]{cacheStandard.ReservationsSucceeded} records[/])",
+            FormatMsHuman(noCache.ReservationAverage),
+            FormatMsHuman(cacheStandard.ReservationAverage),
+            FormatMsHuman(cacheBoosted.ReservationAverage));
+
+        table.AddEmptyRow();
+
+        // === 3. Cache activity ===
+        int noLookups   = noCache.CacheHits + noCache.CacheMisses + noCache.ReferenceCacheHits + noCache.ReferenceCacheMisses;
+        int noHits      = noCache.CacheHits + noCache.ReferenceCacheHits;
+        int stdLookups  = cacheStandard.CacheHits + cacheStandard.CacheMisses + cacheStandard.ReferenceCacheHits + cacheStandard.ReferenceCacheMisses;
+        int stdHits     = cacheStandard.CacheHits + cacheStandard.ReferenceCacheHits;
+        int bstLookups  = cacheBoosted.CacheHits + cacheBoosted.CacheMisses + cacheBoosted.ReferenceCacheHits + cacheBoosted.ReferenceCacheMisses;
+        int bstHits     = cacheBoosted.CacheHits + cacheBoosted.ReferenceCacheHits;
+
+        double noHitRate  = noLookups  == 0 ? 0 : (double)noHits  / noLookups;
+        double stdHitRate = stdLookups == 0 ? 0 : (double)stdHits / stdLookups;
+        double bstHitRate = bstLookups == 0 ? 0 : (double)bstHits / bstLookups;
+
+        table.AddRow("[bold]💾 What the cache did[/]", "", "", "");
+        table.AddRow("  Look-ups (total)",
+            $"[grey]{noLookups:N0}[/]",
+            $"[grey]{stdLookups:N0}[/]",
+            $"[grey]{bstLookups:N0}[/]");
+        table.AddRow("  Answered from cache",
+            $"[grey]{noHits:N0}[/]",
+            $"[bold green]{stdHits:N0}[/]",
+            $"[bold green]{bstHits:N0}[/]");
+        table.AddRow("  Hit rate",
+            $"[grey]{noHitRate:P1}[/]",
+            $"[bold green]{stdHitRate:P1}[/]",
+            $"[bold green]{bstHitRate:P1}[/]");
+
+        table.AddEmptyRow();
+
+        // === 4. Cloud pressure ===
+        // Per-worker rate — сколько cloud calls воркер выдаёт в среднем в секунду при своём parallelism.
+        double noRps  = noCache.CloudOperationsWallClock.Ticks  <= 0 ? 0 : noCache.CloudOperations  / noCache.CloudOperationsWallClock.TotalSeconds;
+        double stdRps = cacheStandard.CloudOperationsWallClock.Ticks <= 0 ? 0 : cacheStandard.CloudOperations / cacheStandard.CloudOperationsWallClock.TotalSeconds;
+        double bstRps = cacheBoosted.CloudOperationsWallClock.Ticks  <= 0 ? 0 : cacheBoosted.CloudOperations  / cacheBoosted.CloudOperationsWallClock.TotalSeconds;
+        const double oracleSustainedRps = 50.0;
+
+        table.AddRow("[bold]☁  Cloud pressure (vs Oracle 50 rps limit)[/]", "", "", "");
+        table.AddRow("  Cloud calls (total)",
+            $"[red]{noCache.CloudOperations:N0}[/]",
+            $"[cyan]{cacheStandard.CloudOperations:N0}[/]",
+            $"[cyan]{cacheBoosted.CloudOperations:N0}[/]");
+        table.AddRow("  Wall-clock waiting for cloud",
+            $"[red]{FormatDurationLong(noCache.CloudOperationsWallClock)}[/]",
+            $"[bold cyan]{FormatDurationLong(cacheStandard.CloudOperationsWallClock)}[/]",
+            $"[bold green]{FormatDurationLong(cacheBoosted.CloudOperationsWallClock)}[/]");
+        table.AddRow("  Cloud rps (effective)",
+            RpsCell(noRps, oracleSustainedRps),
+            RpsCell(stdRps, oracleSustainedRps),
+            RpsCell(bstRps, oracleSustainedRps));
+
+        table.AddEmptyRow();
+
+        // === 5. Money ===
+        var costSavedStd = noCache.EstimatedCloudCostWithThrottling - cacheStandard.EstimatedCloudCostWithThrottling;
+        var costSavedBst = noCache.EstimatedCloudCostWithThrottling - cacheBoosted.EstimatedCloudCostWithThrottling;
+
+        table.AddRow($"[bold]💰 Money on this run[/] [grey](rate: ${cacheStandard.CostPer10kCalls:F0} / 10k · ×{cacheStandard.ThrottlingOverheadFactor:F2} realistic)[/]", "", "", "");
+        table.AddRow("  Best case",
+            $"[cyan]${noCache.EstimatedCloudCost:F2}[/]",
+            $"[cyan]${cacheStandard.EstimatedCloudCost:F2}[/]",
+            $"[cyan]${cacheBoosted.EstimatedCloudCost:F2}[/]");
+        table.AddRow("  Realistic",
+            $"[cyan]${noCache.EstimatedCloudCostWithThrottling:F2}[/]",
+            $"[cyan]${cacheStandard.EstimatedCloudCostWithThrottling:F2}[/] [green]−${costSavedStd:F2}[/]",
+            $"[cyan]${cacheBoosted.EstimatedCloudCostWithThrottling:F2}[/] [green]−${costSavedBst:F2}[/]");
+
+        table.AddEmptyRow();
+
+        // === 6. Projection ===
+        var projSavedStd = noCache.ProjectedCostWithThrottling - cacheStandard.ProjectedCostWithThrottling;
+        var projSavedBst = noCache.ProjectedCostWithThrottling - cacheBoosted.ProjectedCostWithThrottling;
+
+        table.AddRow($"[bold]🏨 Projected saving on {cacheStandard.ProjectedRecordCount:N0} records (realistic)[/]",
+            "[grey]—[/]",
+            $"[bold green]${projSavedStd:F2} saved[/]",
+            $"[bold green]${projSavedBst:F2} saved[/]");
+
+        AnsiConsole.Write(table);
+        AnsiConsole.WriteLine();
+
+        // Резюме в 3 строки под таблицей
+        var boostVsStdRatio = cacheStandard.Overall.Ticks <= 0 || cacheBoosted.Overall.Ticks <= 0
+            ? 0 : cacheStandard.Overall.TotalMilliseconds / cacheBoosted.Overall.TotalMilliseconds;
+        var totalRatio = noCache.Overall.Ticks <= 0 || cacheBoosted.Overall.Ticks <= 0
+            ? 0 : noCache.Overall.TotalMilliseconds / cacheBoosted.Overall.TotalMilliseconds;
+        var cacheOnlyRatio = noCache.Overall.Ticks <= 0 || cacheStandard.Overall.Ticks <= 0
+            ? 0 : noCache.Overall.TotalMilliseconds / cacheStandard.Overall.TotalMilliseconds;
+
+        AnsiConsole.MarkupLine($"[bold]Cache contribution[/] (1 → 2, at same parallelism): [green]×{cacheOnlyRatio:F2} faster[/]");
+        AnsiConsole.MarkupLine($"[bold]Safe-boost contribution[/] (2 → 3, cache enables higher parallelism): [green]×{boostVsStdRatio:F2} faster[/]");
+        AnsiConsole.MarkupLine($"[bold]Total[/] (1 → 3, cache + boosted parallelism): [bold green]×{totalRatio:F2} faster[/]");
+        AnsiConsole.WriteLine();
+    }
+
+    private static string RpsCell(double rps, double sustainedLimit)
+    {
+        var pct = rps / sustainedLimit * 100;
+        var color = pct switch
+        {
+            < 40 => "green",
+            < 80 => "yellow",
+            _    => "red",
+        };
+        return $"[{color}]{rps:F1} rps ({pct:F0}% of {sustainedLimit:F0})[/]";
+    }
+
+    private static string SpeedupLabel(TimeSpan slow, TimeSpan fast)
+    {
+        if (slow.Ticks == 0 || fast.Ticks == 0) return "";
+        var ratio = slow.TotalMilliseconds / fast.TotalMilliseconds;
+        return ratio > 1.05 ? $"×{ratio:F2} vs (1)" : "";
+    }
+
     private static string FormatMs(TimeSpan ts)
         => ts.TotalMilliseconds.ToString("F1", CultureInfo.InvariantCulture);
 

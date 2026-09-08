@@ -26,6 +26,7 @@ public static class Program
     public static async Task Main(string[] args)
     {
         var compare = args.Contains("--compare");
+        var compare3 = args.Contains("--compare3");
         var useCacheService = !args.Contains("--no-cache");
         // Флаг для запуска из Demo-orchestrator: cache TCP server поднят внешним процессом,
         // не пытаемся стартовать in-process — иначе конфликт по порту.
@@ -37,14 +38,18 @@ public static class Program
         Directory.CreateDirectory(artifacts);
 
         var migrationOptions = new MigrationOptions(
-            SourceProfilesDirectory: Path.Combine(solutionRoot, "prerequisites", "data_for_migration", "sim-prod", "1000-5000", "profiles"),
-            SourceBookingsDirectory: Path.Combine(solutionRoot, "prerequisites", "data_for_migration", "sim-prod", "1000-5000", "reservations"),
+            SourceProfilesDirectory: Path.Combine(solutionRoot, "prerequisites", "data_for_migration", "sim-prod", "100-500", "profiles"),
+            SourceBookingsDirectory: Path.Combine(solutionRoot, "prerequisites", "data_for_migration", "sim-prod", "100-500", "reservations"),
             MigrationDbPath: Path.Combine(artifacts, "migration.db"),
             UseCacheService: useCacheService,
             // Демо-масштаб: 500 профайлов + 2000 броней. 0 = полный прогон.
             MaxProfilesToMigrate: 0,
             MaxReservationsToMigrate: 0,
-            Concurrency: MigrationConcurrency.Ten);
+            // Concurrency пресеты (см. MigrationConcurrency):
+            //   Ten (10)         — консервативно, 12% Oracle 50-rps budget. Дефолт для co-tenant gateway.
+            //   TwentyFive (25)  — 32% budget. Разумно, если gateway почти эксклюзивен.
+            //   Sixty (60)       — 76% budget. BOOSTED — безопасно с кэшем (миссы разрежены), опасно без.
+            Concurrency: MigrationConcurrency.TwentyFive);
 
         var cacheOptions = new CacheServiceOptions(IPAddress.Loopback.ToString(), 3456);
         var cloudOptions = new CloudApiOptions(
@@ -53,8 +58,14 @@ public static class Program
             MaxLatencyMs: 3000);
         var pricingOptions = new PricingOptions(
             CostPer10kCalls: 20m,           // $20 / 10 000 calls (стандартный vendor rate)
-            ThrottlingOverheadFactor: 1.35m, // 35% retry-каскад при rate-limit'ах
-            ProjectedRecordCount: 25_000);  // прогноз: 5000 профайлов + 20000 броней
+            ThrottlingOverheadFactor: 1.35m, // 35% retry-каскад при rate-limit'ах Oracle Hospitality
+            ProjectedRecordCount: 70_000);  // прогноз: medium-класс отеля (20k профайлов + 50k броней)
+
+        if (compare3)
+        {
+            await RunCompare3Async(migrationOptions, cacheOptions, cloudOptions, pricingOptions);
+            return;
+        }
 
         if (compare)
         {
@@ -108,6 +119,57 @@ public static class Program
         AnsiConsole.Write(new Rule("[bold yellow]Comparison[/]").Centered());
         var ui = new SpectreConsoleUi();
         ui.RenderComparisonTable(noCache, withCache);
+
+        Console.WriteLine("Press <Enter> key to exit...");
+        Console.ReadLine();
+    }
+
+    // Три прогона: (1) без кэша @ baseline concurrency, (2) с кэшем @ той же concurrency,
+    // (3) с кэшем @ boosted concurrency. Показывает разложение выигрыша:
+    //   1→2 = вклад кэша при одинаковом parallelism.
+    //   2→3 = вклад безопасного повышения parallelism (возможного благодаря кэшу).
+    //   1→3 = суммарный эффект.
+    private static async Task RunCompare3Async(
+        MigrationOptions baseOptions,
+        CacheServiceOptions cacheOptions,
+        CloudApiOptions cloudOptions,
+        PricingOptions pricingOptions)
+    {
+        var baselineConcurrency = baseOptions.Concurrency;             // например, TwentyFive
+        const MigrationConcurrency boostedConcurrency = MigrationConcurrency.Sixty; // 76% Oracle budget
+
+        AnsiConsole.Write(new Rule($"[bold yellow]Compare3 · run 1/3 · NO cache · p={(int)baselineConcurrency}[/]").Centered());
+        AnsiConsole.WriteLine();
+
+        DeleteArtifacts(baseOptions.MigrationDbPath, cloudOptions.CloudDbPath);
+        var noCache = await RunOnceAsync(
+            baseOptions with { UseCacheService = false, Concurrency = baselineConcurrency },
+            cacheOptions, cloudOptions, pricingOptions);
+
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(new Rule($"[bold yellow]Compare3 · run 2/3 · WITH cache · p={(int)baselineConcurrency}[/]").Centered());
+        AnsiConsole.WriteLine();
+
+        DeleteArtifacts(baseOptions.MigrationDbPath, cloudOptions.CloudDbPath);
+        await Task.Delay(300);
+        var cacheStandard = await RunOnceAsync(
+            baseOptions with { UseCacheService = true, Concurrency = baselineConcurrency },
+            cacheOptions, cloudOptions, pricingOptions);
+
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(new Rule($"[bold yellow]Compare3 · run 3/3 · WITH cache · p={(int)boostedConcurrency} (BOOSTED)[/]").Centered());
+        AnsiConsole.WriteLine();
+
+        DeleteArtifacts(baseOptions.MigrationDbPath, cloudOptions.CloudDbPath);
+        await Task.Delay(300);
+        var cacheBoosted = await RunOnceAsync(
+            baseOptions with { UseCacheService = true, Concurrency = boostedConcurrency },
+            cacheOptions, cloudOptions, pricingOptions);
+
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(new Rule("[bold yellow]Comparison — 3 scenarios[/]").Centered());
+        var ui = new SpectreConsoleUi();
+        ui.RenderComparisonTable3(noCache, cacheStandard, cacheBoosted);
 
         Console.WriteLine("Press <Enter> key to exit...");
         Console.ReadLine();

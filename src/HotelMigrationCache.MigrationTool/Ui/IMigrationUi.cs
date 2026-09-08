@@ -18,6 +18,12 @@ public interface IMigrationUi
     // Двухколоночная таблица для режима --compare.
     void RenderComparisonTable(MigrationStatisticsSnapshot noCache, MigrationStatisticsSnapshot withCache);
 
+    // Трёхколоночная таблица для режима --compare3: базовый (no cache) + кэш на том же parallelism + кэш на boosted parallelism.
+    void RenderComparisonTable3(
+        MigrationStatisticsSnapshot noCache,
+        MigrationStatisticsSnapshot cacheStandard,
+        MigrationStatisticsSnapshot cacheBoosted);
+
     // Реальная статистика от ядра кэша (STATS command).
     void RenderCacheServerStats(CacheStatistics stats);
 
