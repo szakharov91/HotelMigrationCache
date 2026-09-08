@@ -1,3 +1,6 @@
+using HotelMigrationCache.Shared.Contracts;
+using HotelMigrationCache.SourceGen.Attributes;
+
 namespace HotelMigrationCache.MigrationTool.Domain;
 
 // DTO для облачных вызовов. По одному record на явный подшаг миграции.
@@ -104,14 +107,42 @@ public sealed record CloudStayProfileAttachment(
     CloudStayProfileRole Role);
 
 // --- Справочные данные отеля: конфигурация, живёт в облаке и одинакова для всех броней ---
-// Read-only. Идеальный кандидат на in-process reference cache.
+// Read-only по семантике; технически — mutable partial-class'ы, чтобы source-gen мог сгенерировать
+// параметрический конструктор и сериализацию через public get;set; свойства.
 
-public sealed record CloudRoomTypeInfo(string Code, string Category, bool AllowsExtraBed);
+[GenerateBinarySerializer]
+public sealed partial class CloudRoomTypeInfo : IBinarySerializable<CloudRoomTypeInfo>
+{
+    public string Code { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public bool AllowsExtraBed { get; set; }
+}
 
-public sealed record CloudRateCodeInfo(string Code, string Description);
+[GenerateBinarySerializer]
+public sealed partial class CloudRateCodeInfo : IBinarySerializable<CloudRateCodeInfo>
+{
+    public string Code { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+}
 
-public sealed record CloudLoyaltyRateRule(LoyaltyLevel Level, int DiscountPercent);
+[GenerateBinarySerializer]
+public sealed partial class CloudLoyaltyRateRule : IBinarySerializable<CloudLoyaltyRateRule>
+{
+    public LoyaltyLevel Level { get; set; }
+    public int DiscountPercent { get; set; }
+}
 
-public sealed record CloudPaymentTypeInfo(string Currency, string AcceptorNetwork);
+[GenerateBinarySerializer]
+public sealed partial class CloudPaymentTypeInfo : IBinarySerializable<CloudPaymentTypeInfo>
+{
+    public string Currency { get; set; } = string.Empty;
+    public string AcceptorNetwork { get; set; } = string.Empty;
+}
 
-public sealed record CloudPreferenceMapping(string Category, string SourceCode, string CanonicalCode);
+[GenerateBinarySerializer]
+public sealed partial class CloudPreferenceMapping : IBinarySerializable<CloudPreferenceMapping>
+{
+    public string Category { get; set; } = string.Empty;
+    public string SourceCode { get; set; } = string.Empty;
+    public string CanonicalCode { get; set; } = string.Empty;
+}

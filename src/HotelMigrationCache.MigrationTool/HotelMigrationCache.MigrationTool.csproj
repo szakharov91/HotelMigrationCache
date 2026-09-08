@@ -10,6 +10,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\HotelMigrationCache.Shared\HotelMigrationCache.Shared.csproj" />
 		<ProjectReference Include="..\HotelMigrationCache.Core\HotelMigrationCache.Core.csproj" />
+		<ProjectReference Include="..\HotelMigrationCache.SourceGen\HotelMigrationCache.SourceGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 	<ItemGroup>

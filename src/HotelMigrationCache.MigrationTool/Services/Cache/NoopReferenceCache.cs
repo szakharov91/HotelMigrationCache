@@ -1,4 +1,5 @@
 using HotelMigrationCache.MigrationTool.Contracts;
+using HotelMigrationCache.Shared.Contracts;
 
 namespace HotelMigrationCache.MigrationTool.Services.Cache;
 
@@ -12,6 +13,7 @@ public sealed class NoopReferenceCache : IReferenceCache
     public NoopReferenceCache(IMigrationStatistics stats) => _stats = stats;
 
     public async Task<T> GetOrLoadAsync<T>(string key, Func<CancellationToken, Task<T>> loader, CancellationToken ct)
+        where T : IBinarySerializable<T>
     {
         _stats.IncrementReferenceCacheMiss();
         return await loader(ct);

@@ -618,14 +618,14 @@ public sealed class SimulatedCloudApiClient : ICloudApiClient
         using var _cloudScope = _stats.TrackCloudOperation();
         await SimulateLatencyAsync(ct);
         var category = code.Contains("Suite", StringComparison.OrdinalIgnoreCase) ? "Suite" : "Standard";
-        return new CloudRoomTypeInfo(code, category, AllowsExtraBed: category == "Standard");
+        return new CloudRoomTypeInfo { Code = code, Category = category, AllowsExtraBed = category == "Standard" };
     }
 
     public async Task<CloudRateCodeInfo> GetRateCodeInfoAsync(string code, CancellationToken ct)
     {
         using var _cloudScope = _stats.TrackCloudOperation();
         await SimulateLatencyAsync(ct);
-        return new CloudRateCodeInfo(code, $"Corporate rate {code}");
+        return new CloudRateCodeInfo { Code = code, Description = $"Corporate rate {code}" };
     }
 
     public async Task<CloudLoyaltyRateRule> GetLoyaltyRateRuleAsync(LoyaltyLevel level, CancellationToken ct)
@@ -641,14 +641,14 @@ public sealed class SimulatedCloudApiClient : ICloudApiClient
             LoyaltyLevel.Basic => 5,
             _ => 0,
         };
-        return new CloudLoyaltyRateRule(level, discount);
+        return new CloudLoyaltyRateRule { Level = level, DiscountPercent = discount };
     }
 
     public async Task<CloudPaymentTypeInfo> GetPaymentTypeInfoAsync(string currency, CancellationToken ct)
     {
         using var _cloudScope = _stats.TrackCloudOperation();
         await SimulateLatencyAsync(ct);
-        return new CloudPaymentTypeInfo(currency, "Visa/MC");
+        return new CloudPaymentTypeInfo { Currency = currency, AcceptorNetwork = "Visa/MC" };
     }
 
     public async Task<CloudPreferenceMapping> GetPreferenceMappingAsync(string category, string sourceCode, CancellationToken ct)
@@ -656,7 +656,7 @@ public sealed class SimulatedCloudApiClient : ICloudApiClient
         using var _cloudScope = _stats.TrackCloudOperation();
         await SimulateLatencyAsync(ct);
         // Возвращаем канонический код (upper-case), как если бы это был лукап в конфигурации отеля.
-        return new CloudPreferenceMapping(category, sourceCode, sourceCode.ToUpperInvariant());
+        return new CloudPreferenceMapping { Category = category, SourceCode = sourceCode, CanonicalCode = sourceCode.ToUpperInvariant() };
     }
 
     // ---------- helpers ----------

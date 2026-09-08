@@ -6,6 +6,7 @@ using HotelMigrationCache.MigrationTool.Services.Loader;
 using HotelMigrationCache.MigrationTool.Services.Statistics;
 using HotelMigrationCache.MigrationTool.Ui;
 using HotelMigrationCache.Shared.Common;
+using HotelMigrationCache.Shared.Contracts;
 
 namespace HotelMigrationCache.MigrationTool.Services.Processor;
 
@@ -198,6 +199,7 @@ public sealed class MigrationProcessor : IMigrationProcessor
     }
 
     private async Task WarmOneAsync<T>(string key, Func<CancellationToken, Task<T>> loader, IUiProgress progress, CancellationToken ct)
+        where T : IBinarySerializable<T>
     {
         try { await _refCache.GetOrLoadAsync(key, loader, ct); }
         finally { progress.Advance(); }

@@ -201,6 +201,7 @@ public class BinarySerializerGenerator : IIncrementalGenerator
         }}",
         SerializationKind.DateTime => $"writer.Write(this.{property.Name}.ToBinary());",
         SerializationKind.DateOnly => $"writer.Write(this.{property.Name}.DayNumber);",
+        SerializationKind.Enum => $"writer.Write(({property.EnumUnderlyingTypeName})this.{property.Name});",
         _ => $"// Unsupported type: {property.TypeName}"
     };
 
@@ -208,9 +209,10 @@ public class BinarySerializerGenerator : IIncrementalGenerator
     {
         SerializationKind.Primitive => $"result.{property.Name} = reader.Read{GetPrimitiveReadMethod(property.TypeName)}();",
         SerializationKind.String =>
-            $"result.{property.Name} = reader.ReadBoolean() ? reader.ReadString() : null;",
+            $"result.{property.Name} = reader.ReadBoolean() ? reader.ReadString() : null!;",
         SerializationKind.DateTime => $"result.{property.Name} = DateTime.FromBinary(reader.ReadInt64());",
         SerializationKind.DateOnly => $"result.{property.Name} = System.DateOnly.FromDayNumber(reader.ReadInt32());",
+        SerializationKind.Enum => $"result.{property.Name} = ({property.TypeName})reader.Read{GetPrimitiveReadMethod(property.EnumUnderlyingTypeName!)}();",
         _ => $"// Unsupported type: {property.TypeName}"
     };
 
@@ -263,12 +265,17 @@ public class BinarySerializerGenerator : IIncrementalGenerator
 
             if (serializationKind != SerializationKind.Unsupported)
             {
+                string? enumUnderlying = null;
+                if (serializationKind == SerializationKind.Enum && typeInfo is INamedTypeSymbol nts)
+                    enumUnderlying = nts.EnumUnderlyingType?.ToDisplayString();
+
                 properties.Add(new PropertyInfo(
                     property.Name,
                     typeInfo.ToDisplayString(),
                     serializationKind,
                     typeInfo,
-                    IsNullablyType(typeInfo))
+                    IsNullablyType(typeInfo),
+                    enumUnderlying)
                 );
             }
         }
@@ -303,6 +310,9 @@ public class BinarySerializerGenerator : IIncrementalGenerator
         if (type.ToDisplayString() == "System.DateOnly")
             return SerializationKind.DateOnly;
 
+        if (type.TypeKind == TypeKind.Enum)
+            return SerializationKind.Enum;
+
 #pragma warning disable S1135 // Track uses of "TODO" tags
                              //TODO: Можно будет добавить другие поддерживаемые типы здесь
 
@@ -320,6 +330,7 @@ public class BinarySerializerGenerator : IIncrementalGenerator
         String,
         DateTime,
         DateOnly,
+        Enum,
         Unsupported = 9999
     }
 
@@ -330,19 +341,22 @@ public class BinarySerializerGenerator : IIncrementalGenerator
         public SerializationKind SerializationKind { get; }
         public ITypeSymbol TypeSymbol { get; }
         public bool IsNullable { get; }
+        public string? EnumUnderlyingTypeName { get; }
 
         public PropertyInfo(
             string name,
             string typeName,
             SerializationKind serializationKind,
             ITypeSymbol typeSymbol,
-            bool isNullable)
+            bool isNullable,
+            string? enumUnderlyingTypeName = null)
         {
             Name = name;
             TypeName = typeName;
             SerializationKind = serializationKind;
             TypeSymbol = typeSymbol;
             IsNullable = isNullable;
+            EnumUnderlyingTypeName = enumUnderlyingTypeName;
         }
     }
 

@@ -196,141 +196,131 @@ public sealed class SpectreConsoleUi : IMigrationUi
             .AddColumn(new TableColumn("[bold cyan]With cache[/]").Centered())
             .AddColumn(new TableColumn("[bold]Δ[/]").Centered());
 
-        table.AddRow("Overall (s)",
-            $"{noCache.Overall.TotalSeconds:F2}",
-            $"{withCache.Overall.TotalSeconds:F2}",
+        // === 1. Headline: сколько времени всё заняло ===
+        table.AddRow("[bold]⏱  How long the whole migration took[/]",
+            $"[cyan]{FormatDurationLong(noCache.Overall)}[/]",
+            $"[bold cyan]{FormatDurationLong(withCache.Overall)}[/]",
             FormatSpeedup(noCache.Overall, withCache.Overall));
 
         table.AddEmptyRow();
 
-        table.AddRow("[bold]Profiles[/]", "", "", "");
-        table.AddRow("  Succeeded",
-            $"[green]{noCache.ProfilesSucceeded}[/]",
-            $"[green]{withCache.ProfilesSucceeded}[/]",
-            "");
-        table.AddRow("  Failed",
-            $"[red]{noCache.ProfilesFailed}[/]",
-            $"[red]{withCache.ProfilesFailed}[/]",
-            "");
-        table.AddRow("  Avg (ms)",
-            FormatMs(noCache.ProfileAverage),
-            FormatMs(withCache.ProfileAverage),
+        // === 2. Скорость на одну запись ===
+        table.AddRow("[bold]📦 How long one record took on average[/]", "", "", "");
+        table.AddRow($"  Profile ([grey]{withCache.ProfilesSucceeded} records[/])",
+            FormatMsHuman(noCache.ProfileAverage),
+            FormatMsHuman(withCache.ProfileAverage),
             FormatSpeedup(noCache.ProfileAverage, withCache.ProfileAverage));
-        table.AddRow("  Total (serial)",
-            FormatDuration(noCache.ProfileTotal),
-            FormatDuration(withCache.ProfileTotal),
-            FormatSpeedup(noCache.ProfileTotal, withCache.ProfileTotal));
-        table.AddRow($"  Wall-clock (÷{withCache.MigrationParallelism})",
-            $"[cyan]{FormatDuration(noCache.ProfileTotalWallClock)}[/]",
-            $"[cyan]{FormatDuration(withCache.ProfileTotalWallClock)}[/]",
-            FormatSpeedup(noCache.ProfileTotalWallClock, withCache.ProfileTotalWallClock));
-
-        table.AddEmptyRow();
-
-        table.AddRow("[bold]Reservations[/]", "", "", "");
-        table.AddRow("  Succeeded",
-            $"[green]{noCache.ReservationsSucceeded}[/]",
-            $"[green]{withCache.ReservationsSucceeded}[/]",
-            "");
-        table.AddRow("  Failed",
-            $"[red]{noCache.ReservationsFailed}[/]",
-            $"[red]{withCache.ReservationsFailed}[/]",
-            "");
-        table.AddRow("  Avg (ms)",
-            FormatMs(noCache.ReservationAverage),
-            FormatMs(withCache.ReservationAverage),
+        table.AddRow($"  Reservation ([grey]{withCache.ReservationsSucceeded} records[/])",
+            FormatMsHuman(noCache.ReservationAverage),
+            FormatMsHuman(withCache.ReservationAverage),
             FormatSpeedup(noCache.ReservationAverage, withCache.ReservationAverage));
-        table.AddRow("  Total (serial)",
-            FormatDuration(noCache.ReservationTotal),
-            FormatDuration(withCache.ReservationTotal),
-            FormatSpeedup(noCache.ReservationTotal, withCache.ReservationTotal));
-        table.AddRow($"  Wall-clock (÷{withCache.MigrationParallelism})",
-            $"[cyan]{FormatDuration(noCache.ReservationTotalWallClock)}[/]",
-            $"[cyan]{FormatDuration(withCache.ReservationTotalWallClock)}[/]",
-            FormatSpeedup(noCache.ReservationTotalWallClock, withCache.ReservationTotalWallClock));
 
         table.AddEmptyRow();
 
-        table.AddRow("[bold]Cache[/]", "", "", "");
-        table.AddRow("  Hits",              $"[green]{noCache.CacheHits}[/]",       $"[green]{withCache.CacheHits}[/]",       "");
-        table.AddRow("  Misses",            $"[yellow]{noCache.CacheMisses}[/]",    $"[yellow]{withCache.CacheMisses}[/]",    "");
-        table.AddRow("  Cloud fallbacks",   $"[red]{noCache.CloudFallbacks}[/]",    $"[red]{withCache.CloudFallbacks}[/]",    "");
-        table.AddRow("  Hit rate",          $"{noCache.CacheHitRate:P1}",           $"{withCache.CacheHitRate:P1}",           "");
-        table.AddRow("  Calls saved",              $"[green]{noCache.CloudCallsSaved}[/]", $"[bold green]{withCache.CloudCallsSaved}[/]", "");
-        table.AddRow("  Time saved (serial)",      FormatDuration(noCache.EstimatedTimeSaved), $"[bold green]{FormatDuration(withCache.EstimatedTimeSaved)}[/]", "");
-        table.AddRow($"  Wall-clock saved (÷{withCache.MigrationParallelism})",
-            FormatDuration(noCache.EstimatedWallClockSaved),
-            $"[bold cyan]{FormatDuration(withCache.EstimatedWallClockSaved)}[/]", "");
+        // === 3. Что сделал кэш — объединяем profile + reference (это один и тот же TCP-кэш) ===
+        int totalHits = noCache.CacheHits + noCache.ReferenceCacheHits
+                        + withCache.CacheHits + withCache.ReferenceCacheHits;
+        _ = totalHits; // suppress unused
+        int noLookups = noCache.CacheHits + noCache.CacheMisses
+                        + noCache.ReferenceCacheHits + noCache.ReferenceCacheMisses;
+        int noHits = noCache.CacheHits + noCache.ReferenceCacheHits;
+        int noMisses = noCache.CacheMisses + noCache.ReferenceCacheMisses;
+        int wcLookups = withCache.CacheHits + withCache.CacheMisses
+                        + withCache.ReferenceCacheHits + withCache.ReferenceCacheMisses;
+        int wcHits = withCache.CacheHits + withCache.ReferenceCacheHits;
+        int wcMisses = withCache.CacheMisses + withCache.ReferenceCacheMisses;
+        double noHitRate = noLookups == 0 ? 0 : (double)noHits / noLookups;
+        double wcHitRate = wcLookups == 0 ? 0 : (double)wcHits / wcLookups;
 
-        table.AddEmptyRow();
-
-        table.AddRow("[bold]Reference cache[/]", "", "", "");
-        table.AddRow("  Hits",              $"[green]{noCache.ReferenceCacheHits}[/]",  $"[green]{withCache.ReferenceCacheHits}[/]",  "");
-        table.AddRow("  Misses",            $"[yellow]{noCache.ReferenceCacheMisses}[/]", $"[yellow]{withCache.ReferenceCacheMisses}[/]", "");
-        table.AddRow("  Hit rate",          $"{noCache.ReferenceCacheHitRate:P1}",      $"{withCache.ReferenceCacheHitRate:P1}",      "");
-        table.AddRow("  Calls saved",              $"[green]{noCache.ReferenceCloudCallsSaved}[/]", $"[bold green]{withCache.ReferenceCloudCallsSaved}[/]", "");
-        table.AddRow("  Time saved (serial)",      FormatDuration(noCache.ReferenceEstimatedTimeSaved), $"[bold green]{FormatDuration(withCache.ReferenceEstimatedTimeSaved)}[/]", "");
-        table.AddRow($"  Wall-clock saved (÷{withCache.MigrationParallelism})",
-            FormatDuration(noCache.ReferenceEstimatedWallClockSaved),
-            $"[bold cyan]{FormatDuration(withCache.ReferenceEstimatedWallClockSaved)}[/]", "");
-
-        table.AddEmptyRow();
-
-        table.AddRow($"[bold]Backend time[/] [grey](serial · wall≈÷{withCache.MigrationParallelism})[/]", "", "", "");
-        table.AddRow("  Cache ops",
-            $"[cyan]{noCache.CacheOperations} · {FormatDuration(noCache.CacheOperationsTime)}[/]",
-            $"[cyan]{withCache.CacheOperations} · {FormatDuration(withCache.CacheOperationsTime)}[/]",
+        table.AddRow("[bold]💾 What the cache did[/]", "", "", "");
+        table.AddRow("  Look-ups (profiles + reference data)",
+            $"[grey]{noLookups:N0}[/]",
+            $"[grey]{wcLookups:N0}[/]",
             "");
-        table.AddRow("  Local DB (serial)",
-            $"[yellow]{noCache.LocalDbOperations} · {FormatDuration(noCache.LocalDbOperationsTime)}[/]",
-            $"[yellow]{withCache.LocalDbOperations} · {FormatDuration(withCache.LocalDbOperationsTime)}[/]",
-            FormatSpeedup(noCache.LocalDbOperationsTime, withCache.LocalDbOperationsTime));
-        table.AddRow("  Local DB (wall-clock)",
-            $"[cyan]{FormatDuration(noCache.LocalDbOperationsWallClock)}[/]",
-            $"[cyan]{FormatDuration(withCache.LocalDbOperationsWallClock)}[/]",
+        table.AddRow("  Answered from cache [grey](instant)[/]",
+            $"[green]{noHits:N0}[/]",
+            $"[bold green]{wcHits:N0}[/]",
+            wcHits > noHits ? $"[green]+{wcHits - noHits:N0}[/]" : "");
+        table.AddRow("  Had to ask cloud [grey](slow)[/]",
+            $"[red]{noMisses:N0}[/]",
+            $"[red]{wcMisses:N0}[/]",
+            noMisses > wcMisses ? $"[green]−{noMisses - wcMisses:N0}[/]" : "");
+        table.AddRow("  Hit rate",
+            $"[grey]{noHitRate:P1}[/]",
+            $"[bold green]{wcHitRate:P1}[/]",
             "");
-        table.AddRow("  Cloud (serial)",
-            $"[red]{noCache.CloudOperations} · {FormatDuration(noCache.CloudOperationsTime)}[/]",
-            $"[red]{withCache.CloudOperations} · {FormatDuration(withCache.CloudOperationsTime)}[/]",
-            FormatSpeedup(noCache.CloudOperationsTime, withCache.CloudOperationsTime));
-        table.AddRow("  Cloud (wall-clock)",
-            $"[bold cyan]{FormatDuration(noCache.CloudOperationsWallClock)}[/]",
-            $"[bold cyan]{FormatDuration(withCache.CloudOperationsWallClock)}[/]",
+
+        table.AddEmptyRow();
+
+        // === 4. Cloud — что реально долгое ===
+        table.AddRow("[bold]☁  Time spent talking to the cloud[/]", "", "", "");
+        table.AddRow("  Cloud calls (total)",
+            $"[red]{noCache.CloudOperations:N0}[/]",
+            $"[cyan]{withCache.CloudOperations:N0}[/]",
+            $"[green]−{noCache.CloudOperations - withCache.CloudOperations:N0}[/]");
+        table.AddRow($"  Wall-clock waiting for cloud [grey](parallelism ÷{withCache.MigrationParallelism})[/]",
+            $"[red]{FormatDurationLong(noCache.CloudOperationsWallClock)}[/]",
+            $"[bold cyan]{FormatDurationLong(withCache.CloudOperationsWallClock)}[/]",
             FormatSpeedup(noCache.CloudOperationsWallClock, withCache.CloudOperationsWallClock));
 
         table.AddEmptyRow();
 
-        // --- Cloud API cost ---
+        // === 5. Deньги за этот прогон ===
         var costSavedBase = noCache.EstimatedCloudCost - withCache.EstimatedCloudCost;
         var costSavedThrottled = noCache.EstimatedCloudCostWithThrottling - withCache.EstimatedCloudCostWithThrottling;
-        var projectedSavedBase = noCache.ProjectedCost - withCache.ProjectedCost;
-        var projectedSavedThrottled = noCache.ProjectedCostWithThrottling - withCache.ProjectedCostWithThrottling;
 
-        table.AddRow($"[bold]Cloud API cost[/] [grey](rate: ${withCache.CostPer10kCalls:F0}/10k)[/]", "", "", "");
-        table.AddRow("  Calls (this run)",
-            $"{noCache.CloudOperations:N0}",
-            $"{withCache.CloudOperations:N0}",
-            $"[green]−{noCache.CloudOperations - withCache.CloudOperations:N0}[/]");
-        table.AddRow("  Cost — base",
+        table.AddRow($"[bold]💰 Money spent on this run[/] [grey](vendor rate: ${withCache.CostPer10kCalls:F0} per 10 000 calls)[/]", "", "", "");
+        table.AddRow("  Best case [grey](if every call succeeds)[/]",
             $"[cyan]${noCache.EstimatedCloudCost:F2}[/]",
             $"[cyan]${withCache.EstimatedCloudCost:F2}[/]",
             $"[bold green]−${costSavedBase:F2}[/]");
-        table.AddRow($"  Cost — throttled (×{withCache.ThrottlingOverheadFactor:F2})",
+        table.AddRow($"  Realistic [grey](×{withCache.ThrottlingOverheadFactor:F2} for retries on rate-limits)[/]",
             $"[cyan]${noCache.EstimatedCloudCostWithThrottling:F2}[/]",
             $"[cyan]${withCache.EstimatedCloudCostWithThrottling:F2}[/]",
             $"[bold green]−${costSavedThrottled:F2}[/]");
-        table.AddRow($"  [grey]Projection @ {withCache.ProjectedRecordCount:N0} records[/]", "", "", "");
-        table.AddRow("    Projected saved (base)",
+
+        table.AddEmptyRow();
+
+        // === 6. Проекция на реальный отель — крупным ===
+        var projectedSavedBase = noCache.ProjectedCost - withCache.ProjectedCost;
+        var projectedSavedThrottled = noCache.ProjectedCostWithThrottling - withCache.ProjectedCostWithThrottling;
+
+        table.AddRow($"[bold]🏨 Projected saving on a real hotel migration[/] [grey](same rate applied to {withCache.ProjectedRecordCount:N0} records)[/]", "", "", "");
+        table.AddRow("  Best case",
             "",
             "",
-            $"[bold green]${projectedSavedBase:F2}[/]");
-        table.AddRow("    Projected saved (throttled)",
+            $"[bold green]${projectedSavedBase:F2} saved[/]");
+        table.AddRow("  Realistic (with retries)",
             "",
             "",
-            $"[bold green]${projectedSavedThrottled:F2}[/]");
+            $"[bold green]${projectedSavedThrottled:F2} saved[/]");
 
         AnsiConsole.Write(table);
         AnsiConsole.WriteLine();
+    }
+
+    private static string FormatDurationLong(TimeSpan ts)
+    {
+        if (ts.TotalSeconds < 1) return $"{ts.TotalMilliseconds:F0} ms";
+        if (ts.TotalMinutes < 1) return $"{ts.TotalSeconds:F1} s";
+        if (ts.TotalHours < 1)
+        {
+            int min = (int)ts.TotalMinutes;
+            int sec = (int)Math.Round((ts.TotalMinutes - min) * 60);
+            if (sec == 60) { min += 1; sec = 0; }
+            return sec == 0 ? $"{min} min" : $"{min} min {sec} s";
+        }
+        int h = (int)ts.TotalHours;
+        int m = (int)Math.Round((ts.TotalHours - h) * 60);
+        if (m == 60) { h += 1; m = 0; }
+        return m == 0 ? $"{h} h" : $"{h} h {m} min";
+    }
+
+    private static string FormatMsHuman(TimeSpan ts)
+    {
+        if (ts.TotalMilliseconds < 1) return "0 ms";
+        if (ts.TotalSeconds < 1) return $"{ts.TotalMilliseconds:F0} ms";
+        return $"{ts.TotalSeconds:F1} s";
     }
 
     private static string FormatMs(TimeSpan ts)
