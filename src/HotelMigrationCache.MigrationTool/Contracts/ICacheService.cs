@@ -21,4 +21,11 @@ public interface ICacheService
     // Реальная статистика от ядра кэша: hits/misses/sets/deletes/count.
     // Null — сервер недоступен (например Dummy, или TCP-соединение потеряно).
     Task<CacheStatistics?> GetServerStatisticsAsync();
+
+    // Удалить с сервера все ключи, к которым обращалась эта инстанция клиента
+    // (SET / GET / DELETE — любое касание запоминается в in-process множестве).
+    // Используется между сценариями `--compare3`, чтобы Run 3 стартовал с холодного кэша.
+    // Заодно даёт полноценное use-case для обязательной команды `DELETE` в демо.
+    // Возвращает: количество успешно удалённых ключей (Ok-ответов от сервера).
+    Task<int> DeleteAllTrackedKeysAsync();
 }

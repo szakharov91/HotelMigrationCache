@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
@@ -7,8 +6,23 @@ namespace HotelMigrationCache.MigrationTool.Services.Statistics;
 // Читатель Jaeger's HTTP API. Дёргает /api/traces?service=<name>&limit=... , аккумулирует
 // per-command тайминги и count. Используется, когда cache-сервер живёт в отдельном процессе
 // (Demo-оркестратор), и локальный MeterListener не видит его emissions.
+//
+// Особенность Jaeger HTTP API: параметр `limit` ограничивает общее число возвращаемых trace'ов
+// (обычно верхний cap ~1500-2000 на memory storage). При большом объёме прогонов (несколько
+// тысяч GET'ов доминируют хвост reservation-фазы) SET'ы и DELETE'ы вытесняются из выборки,
+// и в отчёт попадает только GET.
+//
+// Обход: запрашиваем каждый тип команды отдельно с фильтром `tags={"command.name":"<Kind>"}`.
+// Jaeger вернёт до `limit` трейсов ЭТОГО типа, гарантируя видимость всех четырёх команд.
 public sealed class JaegerTraceReader
 {
+    private const int _perCommandLimit = 2000;
+    private const string _lookback = "1h";
+
+    // Значения `command.name`-тега — enum-имена ServerCommandKind.ToString().
+    // Сервер выставляет тег в TcpServerInterface: `result.GetCommandKind().ToString()`.
+    private static readonly string[] _knownCommands = ["Get", "Set", "Delete", "Stats"];
+
     private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(10) };
 
     private readonly ILogger<JaegerTraceReader> _logger;
@@ -28,35 +42,78 @@ public sealed class JaegerTraceReader
 
     public async Task<IReadOnlyDictionary<string, JaegerCommandStats>?> FetchAsync(CancellationToken ct)
     {
-        var url = $"{_baseUrl}/api/traces?service={Uri.EscapeDataString(_serviceName)}&limit=2000&lookback=1h";
+        // Параллельно запрашиваем 4 команды. Каждая — независимый HTTP-запрос к Jaeger.
+        var perCommandTasks = _knownCommands
+            .Select(cmd => FetchOneCommandAsync(cmd, ct))
+            .ToArray();
+
+        try
+        {
+            await Task.WhenAll(perCommandTasks);
+        }
+        catch
+        {
+            // Ошибки логируются в FetchOneCommandAsync; здесь просто продолжаем с тем, что есть.
+        }
+
+        // Аггрегируем результаты в единый словарь.
+        var merged = new Dictionary<string, JaegerCommandStats>(StringComparer.Ordinal);
+        bool anySuccessful = false;
+
+        for (int i = 0; i < _knownCommands.Length; i++)
+        {
+            var task = perCommandTasks[i];
+            if (task.IsCompletedSuccessfully && task.Result is { } stats)
+            {
+                anySuccessful = true;
+                if (stats.Count > 0)
+                    merged[_knownCommands[i]] = stats;
+            }
+        }
+
+        // Если ни один запрос не удался — сигнализируем null (UI выведет "no traces").
+        return anySuccessful ? merged : null;
+    }
+
+    private async Task<JaegerCommandStats?> FetchOneCommandAsync(string commandName, CancellationToken ct)
+    {
+        // Jaeger tag-filter: tags={"command.name":"Get"} — JSON-encoded, потом URL-encoded.
+        var tagJson = $"{{\"command.name\":\"{commandName}\"}}";
+        var url = $"{_baseUrl}/api/traces?service={Uri.EscapeDataString(_serviceName)}"
+                + $"&tags={Uri.EscapeDataString(tagJson)}"
+                + $"&limit={_perCommandLimit}&lookback={_lookback}";
 
         try
         {
             using var resp = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
             if (!resp.IsSuccessStatusCode)
             {
-                _logger.LogWarning("Jaeger returned {StatusCode} — telemetry from Jaeger will be skipped in the report.", resp.StatusCode);
+                _logger.LogWarning("Jaeger returned {StatusCode} for command={Command} — skipping this command.",
+                    resp.StatusCode, commandName);
                 return null;
             }
 
             await using var stream = await resp.Content.ReadAsStreamAsync(ct);
             using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
 
-            return Aggregate(doc.RootElement);
+            return AggregateSingle(doc.RootElement);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Jaeger fetch failed at {Url} — skipping.", url);
+            _logger.LogWarning(ex, "Jaeger fetch failed for command={Command} at {Url} — skipping.",
+                commandName, url);
             return null;
         }
     }
 
-    private static IReadOnlyDictionary<string, JaegerCommandStats> Aggregate(JsonElement root)
+    // Аггрегация одного per-command HTTP-ответа. Здесь filter по tags применил Jaeger,
+    // поэтому все span'ы в data[*].spans[*] — уже нужной команды. Просто складываем durations.
+    private static JaegerCommandStats AggregateSingle(JsonElement root)
     {
-        var acc = new Dictionary<string, StatsAcc>(StringComparer.Ordinal);
+        var acc = new StatsAcc();
 
         if (!root.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
-            return new Dictionary<string, JaegerCommandStats>();
+            return acc.ToSnapshot();
 
         foreach (var trace in data.EnumerateArray())
         {
@@ -65,38 +122,14 @@ public sealed class JaegerTraceReader
 
             foreach (var span in spans.EnumerateArray())
             {
-                var commandName = "(unknown)";
-                if (span.TryGetProperty("tags", out var tags) && tags.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (var tag in tags.EnumerateArray())
-                    {
-                        if (tag.TryGetProperty("key", out var k) &&
-                            k.ValueKind == JsonValueKind.String &&
-                            k.GetString() == "command.name" &&
-                            tag.TryGetProperty("value", out var v))
-                        {
-                            commandName = v.ValueKind == JsonValueKind.String
-                                ? v.GetString() ?? "(unknown)"
-                                : v.ToString();
-                            break;
-                        }
-                    }
-                }
-
                 double durationMs = 0;
                 if (span.TryGetProperty("duration", out var d) && d.ValueKind == JsonValueKind.Number)
-                    durationMs = d.GetDouble() / 1000.0; // Jaeger duration is µs
-
-                if (!acc.TryGetValue(commandName, out var s))
-                    acc[commandName] = s = new StatsAcc();
-                s.Add(durationMs);
+                    durationMs = d.GetDouble() / 1000.0; // Jaeger duration in µs.
+                acc.Add(durationMs);
             }
         }
 
-        var result = new Dictionary<string, JaegerCommandStats>(StringComparer.Ordinal);
-        foreach (var (name, s) in acc)
-            result[name] = s.ToSnapshot();
-        return result;
+        return acc.ToSnapshot();
     }
 
     private sealed class StatsAcc

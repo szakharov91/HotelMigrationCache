@@ -45,4 +45,7 @@ public sealed class DummyCacheService : ICacheService
 
     // Dummy не общается с сервером → нет реальной статистики.
     public Task<CacheStatistics?> GetServerStatisticsAsync() => Task.FromResult<CacheStatistics?>(null);
+
+    // Dummy никогда не касался кэша → нечего чистить.
+    public Task<int> DeleteAllTrackedKeysAsync() => Task.FromResult(0);
 }

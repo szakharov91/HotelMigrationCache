@@ -145,6 +145,8 @@ public static class Program
         var noCache = await RunOnceAsync(
             baseOptions with { UseCacheService = false, Concurrency = baselineConcurrency },
             cacheOptions, cloudOptions, pricingOptions);
+        // Run 1 использует DummyCacheService — чистить нечего, но вызов no-op DeleteAllTrackedKeysAsync
+        // на всякий случай защищает Run 2 от «прогретого» состояния, если что-то осталось от предыдущей сессии.
 
         AnsiConsole.WriteLine();
         AnsiConsole.Write(new Rule($"[bold yellow]Compare3 · run 2/3 · WITH cache · p={(int)baselineConcurrency}[/]").Centered());
@@ -152,9 +154,13 @@ public static class Program
 
         DeleteArtifacts(baseOptions.MigrationDbPath, cloudOptions.CloudDbPath);
         await Task.Delay(300);
+        // cleanCacheAfter: true — после Run 2 удаляем через DELETE все ключи, к которым обращались,
+        // чтобы Run 3 стартовал с холодного кэша (иначе ref-данные из Run 2 = 100% hit rate,
+        // а в Run 2 — 99.3% из-за первичного warm'а; сравнение (2)→(3) искажается).
         var cacheStandard = await RunOnceAsync(
             baseOptions with { UseCacheService = true, Concurrency = baselineConcurrency },
-            cacheOptions, cloudOptions, pricingOptions);
+            cacheOptions, cloudOptions, pricingOptions,
+            cleanCacheAfter: true);
 
         AnsiConsole.WriteLine();
         AnsiConsole.Write(new Rule($"[bold yellow]Compare3 · run 3/3 · WITH cache · p={(int)boostedConcurrency} (BOOSTED)[/]").Centered());
@@ -162,9 +168,12 @@ public static class Program
 
         DeleteArtifacts(baseOptions.MigrationDbPath, cloudOptions.CloudDbPath);
         await Task.Delay(300);
+        // cleanCacheAfter: true и после Run 3 — не критично (это последний прогон), но
+        // оставляет кэш чистым для последующих демонстраций / повторного `--compare3`.
         var cacheBoosted = await RunOnceAsync(
             baseOptions with { UseCacheService = true, Concurrency = boostedConcurrency },
-            cacheOptions, cloudOptions, pricingOptions);
+            cacheOptions, cloudOptions, pricingOptions,
+            cleanCacheAfter: true);
 
         AnsiConsole.WriteLine();
         AnsiConsole.Write(new Rule("[bold yellow]Comparison — 3 scenarios[/]").Centered());
@@ -179,7 +188,8 @@ public static class Program
         MigrationOptions migrationOptions,
         CacheServiceOptions cacheOptions,
         CloudApiOptions cloudOptions,
-        PricingOptions pricingOptions)
+        PricingOptions pricingOptions,
+        bool cleanCacheAfter = false)
     {
         // Не используем host.RunAsync() — он диспоузит host в finally, и Services становятся недоступны.
         // Разбиваем на Start + WaitForShutdown, снимаем статистику до Dispose.
@@ -188,8 +198,23 @@ public static class Program
         {
             await host.StartAsync();
             await host.WaitForShutdownAsync();
+
+            // Сначала снимаем snapshot — статистика миграции должна отражать только сам прогон.
             var stats = host.Services.GetRequiredService<IMigrationStatistics>();
-            return stats.Snapshot();
+            var snapshot = stats.Snapshot();
+
+            // Cleanup ПОСЛЕ snapshot'а — не искажает метрики, служит только для
+            // сброса состояния кэш-сервера между сценариями --compare3.
+            if (cleanCacheAfter)
+            {
+                var cache = host.Services.GetRequiredService<ICacheService>();
+                var deleted = await cache.DeleteAllTrackedKeysAsync();
+                AnsiConsole.MarkupLine(
+                    $"[grey]Cache cleanup: {deleted} keys removed via DELETE " +
+                    $"(reset before next scenario)[/]");
+            }
+
+            return snapshot;
         }
         finally
         {
